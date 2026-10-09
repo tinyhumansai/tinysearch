@@ -20,18 +20,43 @@ pub const UNAVAILABLE: &str = "provider_unavailable";
 /// because another provider would reject the same request.
 pub const INVALID_ARGUMENTS: &str = "invalid_arguments";
 
+/// The managed backend rejected the host's TinyHumans credential (HTTP 401):
+/// the session is no longer valid, or the API key was revoked. The host
+/// decides whether that means signing in again. Role tools fall back past it,
+/// since a provider keyed by the user's own credential can still answer.
+pub const BACKEND_UNAUTHORIZED: &str = "backend_unauthorized";
+/// A provider rejected the user's own API key (HTTP 401/403). The message
+/// names the provider. Role tools fall back past it.
+pub const PROVIDER_UNAUTHORIZED: &str = "provider_unauthorized";
+
 /// Every code, for exhaustive host-side matching.
 pub const ALL: &[&str] = &[
     INSUFFICIENT_BALANCE,
     RATE_LIMITED,
     UNAVAILABLE,
     INVALID_ARGUMENTS,
+    BACKEND_UNAUTHORIZED,
+    PROVIDER_UNAUTHORIZED,
 ];
 
 /// Returns whether a role tool tries the next provider after `code`.
 #[must_use]
 pub fn is_fallback_eligible(code: &str) -> bool {
-    matches!(code, INSUFFICIENT_BALANCE | RATE_LIMITED | UNAVAILABLE)
+    matches!(
+        code,
+        INSUFFICIENT_BALANCE
+            | RATE_LIMITED
+            | UNAVAILABLE
+            | BACKEND_UNAUTHORIZED
+            | PROVIDER_UNAUTHORIZED
+    )
+}
+
+/// Returns whether `code` reports a rejected credential, which a host must
+/// surface even when a later fallback failed for another reason.
+#[must_use]
+pub fn is_unauthorized(code: &str) -> bool {
+    matches!(code, BACKEND_UNAUTHORIZED | PROVIDER_UNAUTHORIZED)
 }
 
 /// Formats `message` with the `tinysearch.<code>: ` prefix.

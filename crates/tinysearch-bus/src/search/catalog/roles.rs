@@ -119,9 +119,18 @@ pub fn role_tool_specs(
                  sources, current information, or pages to read next. Backed by: {backed_by} \
                  (tried in that order; later providers are fallbacks)."
             ),
+            // `limit` is accepted as an alias: models carry it over from
+            // the other list-style tools beside this one, and rejecting it
+            // cost the search (production traces, Oct 2026).
             json!({
                 "query":text,
                 "max_results":{"type":"integer","minimum":1,"maximum":20},
+                "limit":{
+                    "type":"integer",
+                    "minimum":1,
+                    "maximum":20,
+                    "description":"Same as max_results."
+                },
                 "provider":provider
             }),
             &["query"],

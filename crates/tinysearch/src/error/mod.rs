@@ -36,6 +36,17 @@ pub enum Error {
     /// A configured provider is required for this presentation.
     #[error("presentation requires a provider")]
     MissingProvider,
+    /// The provider or backend rejected the credential (HTTP 401/403) before
+    /// the call site said whose credential it was. Refined into
+    /// [`Error::BackendUnauthorized`] or [`Error::ProviderUnauthorized`].
+    #[error("provider rejected the credential")]
+    Unauthorized,
+    /// The managed backend rejected the host's TinyHumans credential.
+    #[error("the managed search backend rejected the TinyHumans credential")]
+    BackendUnauthorized,
+    /// A provider rejected the user's own API key.
+    #[error("{0} rejected the configured API key")]
+    ProviderUnauthorized(String),
     /// The provider rejected a request.
     #[error("provider request failed: {0}")]
     Provider(String),
@@ -52,8 +63,37 @@ impl Error {
             Self::InsufficientBalance => Some(errors::INSUFFICIENT_BALANCE),
             Self::RateLimited => Some(errors::RATE_LIMITED),
             Self::ProviderUnavailable(_) => Some(errors::UNAVAILABLE),
+            Self::BackendUnauthorized => Some(errors::BACKEND_UNAUTHORIZED),
+            Self::Unauthorized | Self::ProviderUnauthorized(_) => {
+                Some(errors::PROVIDER_UNAUTHORIZED)
+            }
             _ => None,
         }
+    }
+
+    /// Names `provider` as the owner of a rejected credential. Every other
+    /// error, including an already attributed one, is returned unchanged.
+    #[must_use]
+    pub fn attributed_to(self, provider: &str) -> Self {
+        match self {
+            Self::Unauthorized => Self::ProviderUnauthorized(provider.to_owned()),
+            other => other,
+        }
+    }
+
+    /// Marks a rejected credential as the managed backend's.
+    #[must_use]
+    pub fn from_backend(self) -> Self {
+        match self {
+            Self::Unauthorized => Self::BackendUnauthorized,
+            other => other,
+        }
+    }
+
+    /// Whether this error reports a rejected credential.
+    #[must_use]
+    pub fn is_unauthorized(&self) -> bool {
+        self.code().is_some_and(errors::is_unauthorized)
     }
 
     /// Returns whether a role tool should try its next provider after this error.

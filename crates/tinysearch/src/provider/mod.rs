@@ -65,6 +65,20 @@ impl BuiltinProvider {
         backend: &BackendConfig,
         request: &ExecuteToolRequest,
     ) -> Result<ExecuteToolResponse> {
+        self.run_unattributed(config, backend, request)
+            .await
+            .map_err(|error| error.attributed_to(self.name))
+    }
+
+    /// [`Self::run`] before a rejected credential is attributed: a backend
+    /// rejection is already marked by `send_json`, and anything left
+    /// unattributed belongs to this provider's own key.
+    async fn run_unattributed(
+        &self,
+        config: &ProviderConfig,
+        backend: &BackendConfig,
+        request: &ExecuteToolRequest,
+    ) -> Result<ExecuteToolResponse> {
         let (path, body) = match self.name {
             "exa" if config.route == ProviderRoute::Backend => exa_request(request)?,
             "exa" | "parallel" | "brave" | "querit" | "tavily" | "seltz" | "searxng"
@@ -327,6 +341,10 @@ async fn send_json(
         .request(method, url)
         .timeout(timeout)
         .header(reqwest::header::ACCEPT, "application/json");
+    let auth_kind = match auth {
+        Auth::Backend(_) => AuthKind::Backend,
+        Auth::Google(_) => AuthKind::Provider,
+    };
     request = match auth {
         Auth::Backend(config) => {
             let credential = config
@@ -348,7 +366,18 @@ async fn send_json(
         request = request.json(&body);
     }
     let response = request.send().await.map_err(http::transport_error)?;
-    http::read_json(response).await
+    let result = http::read_json(response).await;
+    match auth_kind {
+        AuthKind::Backend => result.map_err(Error::from_backend),
+        AuthKind::Provider => result,
+    }
+}
+
+/// Whose credential a request carried, kept past the move of [`Auth`].
+#[derive(Clone, Copy)]
+enum AuthKind {
+    Backend,
+    Provider,
 }
 
 fn unwrap_backend(mut value: Value) -> Result<Value> {
