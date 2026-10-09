@@ -1644,7 +1644,7 @@ fn http_classification_categorizes_unavailable() {
 
 #[test]
 fn http_classification_categorizes_other_errors() {
-    let error = super::http::classify_status(403, b"");
+    let error = super::http::classify_status(404, b"");
     assert!(matches!(error, Error::Provider(_)));
 }
 
@@ -1841,12 +1841,18 @@ async fn a_direct_key_rejection_names_the_provider_whose_key_it_was() -> TestRes
         server.await??;
         assert_eq!(
             error,
-            Error::ProviderUnauthorized("tavily".into()),
+            Error::ProviderUnauthorized {
+                provider: "tavily".into(),
+                status
+            },
             "HTTP {status}"
         );
         assert_eq!(
             error.bus_message(),
-            "tinysearch.provider_unauthorized: tavily rejected the configured API key"
+            format!(
+                "tinysearch.provider_unauthorized: tavily rejected the configured API key \
+                 (HTTP {status})"
+            )
         );
     }
     Ok(())
@@ -1880,6 +1886,12 @@ async fn a_backend_rejection_is_never_attributed_to_the_provider() -> TestResult
 
 #[test]
 fn http_classification_recognizes_rejected_credentials() {
-    assert_eq!(super::http::classify_status(401, b""), Error::Unauthorized);
-    assert_eq!(super::http::classify_status(403, b""), Error::Unauthorized);
+    assert_eq!(
+        super::http::classify_status(401, b""),
+        Error::Unauthorized(401)
+    );
+    assert_eq!(
+        super::http::classify_status(403, b""),
+        Error::Unauthorized(403)
+    );
 }

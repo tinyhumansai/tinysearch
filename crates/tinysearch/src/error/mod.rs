@@ -39,14 +39,19 @@ pub enum Error {
     /// The provider or backend rejected the credential (HTTP 401/403) before
     /// the call site said whose credential it was. Refined into
     /// [`Error::BackendUnauthorized`] or [`Error::ProviderUnauthorized`].
-    #[error("provider rejected the credential")]
-    Unauthorized,
+    #[error("provider rejected the credential (HTTP {0})")]
+    Unauthorized(u16),
     /// The managed backend rejected the host's TinyHumans credential.
     #[error("the managed search backend rejected the TinyHumans credential")]
     BackendUnauthorized,
     /// A provider rejected the user's own API key.
-    #[error("{0} rejected the configured API key")]
-    ProviderUnauthorized(String),
+    #[error("{provider} rejected the configured API key (HTTP {status})")]
+    ProviderUnauthorized {
+        /// The provider whose key was rejected.
+        provider: String,
+        /// The HTTP status it answered with.
+        status: u16,
+    },
     /// The provider rejected a request.
     #[error("provider request failed: {0}")]
     Provider(String),
@@ -64,7 +69,7 @@ impl Error {
             Self::RateLimited => Some(errors::RATE_LIMITED),
             Self::ProviderUnavailable(_) => Some(errors::UNAVAILABLE),
             Self::BackendUnauthorized => Some(errors::BACKEND_UNAUTHORIZED),
-            Self::Unauthorized | Self::ProviderUnauthorized(_) => {
+            Self::Unauthorized(_) | Self::ProviderUnauthorized { .. } => {
                 Some(errors::PROVIDER_UNAUTHORIZED)
             }
             _ => None,
@@ -76,7 +81,10 @@ impl Error {
     #[must_use]
     pub fn attributed_to(self, provider: &str) -> Self {
         match self {
-            Self::Unauthorized => Self::ProviderUnauthorized(provider.to_owned()),
+            Self::Unauthorized(status) => Self::ProviderUnauthorized {
+                provider: provider.to_owned(),
+                status,
+            },
             other => other,
         }
     }
@@ -85,7 +93,7 @@ impl Error {
     #[must_use]
     pub fn from_backend(self) -> Self {
         match self {
-            Self::Unauthorized => Self::BackendUnauthorized,
+            Self::Unauthorized(_) => Self::BackendUnauthorized,
             other => other,
         }
     }

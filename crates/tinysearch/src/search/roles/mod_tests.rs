@@ -61,7 +61,10 @@ fn signed_out() -> Error {
     Error::BackendUnauthorized
 }
 fn bad_key() -> Error {
-    Error::ProviderUnauthorized("brave".into())
+    Error::ProviderUnauthorized {
+        provider: "brave".into(),
+        status: 401,
+    }
 }
 
 struct Fixture {
