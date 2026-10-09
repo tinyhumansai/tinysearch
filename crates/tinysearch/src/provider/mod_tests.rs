@@ -1930,8 +1930,10 @@ async fn a_keyless_provider_refusal_is_not_blamed_on_a_key() -> TestResult<()> {
     };
     let error = provider
         .run(
+            // A stray credential SearXNG never sends must not count as a key.
             &ProviderConfig {
                 base_url: Some(url),
+                credential: Some("unused-value".into()),
                 ..ProviderConfig::default()
             },
             &BackendConfig::default(),

@@ -65,10 +65,14 @@ impl BuiltinProvider {
         backend: &BackendConfig,
         request: &ExecuteToolRequest,
     ) -> Result<ExecuteToolResponse> {
-        let keyed = config
-            .credential
-            .as_deref()
-            .is_some_and(|key| !key.trim().is_empty());
+        // A key counts only if this provider's request carries one. SearXNG
+        // never sends `credential`, so a stray value in its config must not
+        // turn an ACL or proxy refusal into "your key was rejected".
+        let keyed = !KEYLESS_PROVIDERS.contains(&self.name)
+            && config
+                .credential
+                .as_deref()
+                .is_some_and(|key| !key.trim().is_empty());
         self.run_unattributed(config, backend, request)
             .await
             .map_err(|error| error.attributed_to(self.name, keyed))
@@ -306,6 +310,9 @@ fn validate_interaction_id(id: &str) -> Result<()> {
     }
     Ok(())
 }
+
+/// Providers whose requests never carry `ProviderConfig::credential`.
+const KEYLESS_PROVIDERS: &[&str] = &["searxng"];
 
 enum Auth<'a> {
     Backend(&'a BackendConfig),

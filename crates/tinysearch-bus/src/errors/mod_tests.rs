@@ -7,6 +7,8 @@ fn codes_are_stable_wire_strings() {
     assert_eq!(RATE_LIMITED, "rate_limited");
     assert_eq!(UNAVAILABLE, "provider_unavailable");
     assert_eq!(INVALID_ARGUMENTS, "invalid_arguments");
+    assert_eq!(BACKEND_UNAUTHORIZED, "backend_unauthorized");
+    assert_eq!(PROVIDER_UNAUTHORIZED, "provider_unauthorized");
 }
 
 #[test]
