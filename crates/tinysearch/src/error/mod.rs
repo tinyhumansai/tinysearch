@@ -41,7 +41,7 @@ pub enum Error {
     /// [`Error::BackendUnauthorized`] or [`Error::ProviderUnauthorized`].
     #[error("provider rejected the credential (HTTP {0})")]
     Unauthorized(u16),
-    /// The managed backend rejected the host's TinyHumans credential.
+    /// The managed backend rejected the host's `TinyHumans` credential.
     #[error("the managed search backend rejected the TinyHumans credential")]
     BackendUnauthorized,
     /// A provider rejected the user's own API key.

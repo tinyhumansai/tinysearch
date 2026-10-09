@@ -20,7 +20,7 @@ pub const UNAVAILABLE: &str = "provider_unavailable";
 /// because another provider would reject the same request.
 pub const INVALID_ARGUMENTS: &str = "invalid_arguments";
 
-/// The managed backend rejected the host's TinyHumans credential (HTTP 401):
+/// The managed backend rejected the host's `TinyHumans` credential (HTTP 401):
 /// the session is no longer valid, or the API key was revoked. The host
 /// decides whether that means signing in again. Role tools fall back past it,
 /// since a provider keyed by the user's own credential can still answer.
