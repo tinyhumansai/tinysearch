@@ -76,24 +76,34 @@ impl Error {
         }
     }
 
-    /// Names `provider` as the owner of a rejected credential. Every other
-    /// error, including an already attributed one, is returned unchanged.
+    /// Names `provider` as the owner of a rejected credential, when it was
+    /// sent one. A keyless provider (`SearXNG`) answering 401/403 is refused by
+    /// an ACL or a proxy, not by a key the user could update, so it stays an
+    /// ordinary provider failure. Every other error is returned unchanged.
     #[must_use]
-    pub fn attributed_to(self, provider: &str) -> Self {
+    pub fn attributed_to(self, provider: &str, keyed: bool) -> Self {
         match self {
-            Self::Unauthorized(status) => Self::ProviderUnauthorized {
+            Self::Unauthorized(status) if keyed => Self::ProviderUnauthorized {
                 provider: provider.to_owned(),
                 status,
             },
+            Self::Unauthorized(status) => {
+                Self::Provider(format!("provider returned HTTP {status}"))
+            }
             other => other,
         }
     }
 
-    /// Marks a rejected credential as the managed backend's.
+    /// Marks a rejected credential as the managed backend's. Only a 401 says
+    /// the credential itself is dead; a 403 is an authenticated request the
+    /// backend will not serve, which signing in again would not fix.
     #[must_use]
     pub fn from_backend(self) -> Self {
         match self {
-            Self::Unauthorized(_) => Self::BackendUnauthorized,
+            Self::Unauthorized(401) => Self::BackendUnauthorized,
+            Self::Unauthorized(status) => {
+                Self::Provider(format!("backend refused the request (HTTP {status})"))
+            }
             other => other,
         }
     }

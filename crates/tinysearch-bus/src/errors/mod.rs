@@ -26,7 +26,8 @@ pub const INVALID_ARGUMENTS: &str = "invalid_arguments";
 /// since a provider keyed by the user's own credential can still answer.
 pub const BACKEND_UNAUTHORIZED: &str = "backend_unauthorized";
 /// A provider rejected the user's own API key (HTTP 401/403). The message
-/// names the provider. Role tools fall back past it.
+/// names the provider. Never used for a provider that was sent no key, nor
+/// for a backend 403. Role tools fall back past it.
 pub const PROVIDER_UNAUTHORIZED: &str = "provider_unauthorized";
 
 /// Every code, for exhaustive host-side matching.

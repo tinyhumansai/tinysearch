@@ -1895,3 +1895,53 @@ fn http_classification_recognizes_rejected_credentials() {
         Error::Unauthorized(403)
     );
 }
+
+#[tokio::test]
+async fn a_backend_403_is_not_a_dead_session() -> TestResult<()> {
+    let (url, server) = mock(403, json!({"success":false,"error":"Forbidden"})).await?;
+    let provider = BuiltinProvider {
+        name: "exa",
+        client: Client::new(),
+    };
+    let error = provider
+        .run(
+            &backend_route(),
+            &backend(url, BackendAuthMode::Session),
+            &request("exa_search", json!({"query":"q"})),
+        )
+        .await
+        .err()
+        .ok_or("expected provider error")?;
+    server.await??;
+    assert_eq!(
+        error,
+        Error::Provider("backend refused the request (HTTP 403)".into())
+    );
+    assert!(!error.is_unauthorized());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_keyless_provider_refusal_is_not_blamed_on_a_key() -> TestResult<()> {
+    let (url, server) = mock(401, json!({"error":"acl"})).await?;
+    let provider = BuiltinProvider {
+        name: "searxng",
+        client: Client::new(),
+    };
+    let error = provider
+        .run(
+            &ProviderConfig {
+                base_url: Some(url),
+                ..ProviderConfig::default()
+            },
+            &BackendConfig::default(),
+            &request("searxng_search", json!({"query":"q"})),
+        )
+        .await
+        .err()
+        .ok_or("expected provider error")?;
+    server.await??;
+    assert_eq!(error, Error::Provider("provider returned HTTP 401".into()));
+    assert!(!error.is_unauthorized());
+    Ok(())
+}

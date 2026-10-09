@@ -65,9 +65,13 @@ impl BuiltinProvider {
         backend: &BackendConfig,
         request: &ExecuteToolRequest,
     ) -> Result<ExecuteToolResponse> {
+        let keyed = config
+            .credential
+            .as_deref()
+            .is_some_and(|key| !key.trim().is_empty());
         self.run_unattributed(config, backend, request)
             .await
-            .map_err(|error| error.attributed_to(self.name))
+            .map_err(|error| error.attributed_to(self.name, keyed))
     }
 
     /// [`Self::run`] before a rejected credential is attributed: a backend
@@ -341,7 +345,7 @@ async fn send_json(
         .request(method, url)
         .timeout(timeout)
         .header(reqwest::header::ACCEPT, "application/json");
-    let auth_kind = match auth {
+    let auth_kind = match &auth {
         Auth::Backend(_) => AuthKind::Backend,
         Auth::Google(_) => AuthKind::Provider,
     };
@@ -373,7 +377,7 @@ async fn send_json(
     }
 }
 
-/// Whose credential a request carried, kept past the move of [`Auth`].
+/// Whose credential a request carried, kept after [`Auth`] is consumed.
 #[derive(Clone, Copy)]
 enum AuthKind {
     Backend,
