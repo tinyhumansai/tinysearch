@@ -36,6 +36,22 @@ pub enum Error {
     /// A configured provider is required for this presentation.
     #[error("presentation requires a provider")]
     MissingProvider,
+    /// The provider or backend rejected the credential (HTTP 401/403) before
+    /// the call site said whose credential it was. Refined into
+    /// [`Error::BackendUnauthorized`] or [`Error::ProviderUnauthorized`].
+    #[error("provider rejected the credential (HTTP {0})")]
+    Unauthorized(u16),
+    /// The managed backend rejected the host's `TinyHumans` credential.
+    #[error("the managed search backend rejected the TinyHumans credential")]
+    BackendUnauthorized,
+    /// A provider rejected the user's own API key.
+    #[error("{provider} rejected the configured API key (HTTP {status})")]
+    ProviderUnauthorized {
+        /// The provider whose key was rejected.
+        provider: String,
+        /// The HTTP status it answered with.
+        status: u16,
+    },
     /// The provider rejected a request.
     #[error("provider request failed: {0}")]
     Provider(String),
@@ -52,8 +68,50 @@ impl Error {
             Self::InsufficientBalance => Some(errors::INSUFFICIENT_BALANCE),
             Self::RateLimited => Some(errors::RATE_LIMITED),
             Self::ProviderUnavailable(_) => Some(errors::UNAVAILABLE),
+            Self::BackendUnauthorized => Some(errors::BACKEND_UNAUTHORIZED),
+            Self::Unauthorized(_) | Self::ProviderUnauthorized { .. } => {
+                Some(errors::PROVIDER_UNAUTHORIZED)
+            }
             _ => None,
         }
+    }
+
+    /// Names `provider` as the owner of a rejected credential, when it was
+    /// sent one. A keyless provider (`SearXNG`) answering 401/403 is refused by
+    /// an ACL or a proxy, not by a key the user could update, so it stays an
+    /// ordinary provider failure. Every other error is returned unchanged.
+    #[must_use]
+    pub fn attributed_to(self, provider: &str, keyed: bool) -> Self {
+        match self {
+            Self::Unauthorized(status) if keyed => Self::ProviderUnauthorized {
+                provider: provider.to_owned(),
+                status,
+            },
+            Self::Unauthorized(status) => {
+                Self::Provider(format!("provider returned HTTP {status}"))
+            }
+            other => other,
+        }
+    }
+
+    /// Marks a rejected credential as the managed backend's. Only a 401 says
+    /// the credential itself is dead; a 403 is an authenticated request the
+    /// backend will not serve, which signing in again would not fix.
+    #[must_use]
+    pub fn from_backend(self) -> Self {
+        match self {
+            Self::Unauthorized(401) => Self::BackendUnauthorized,
+            Self::Unauthorized(status) => {
+                Self::Provider(format!("backend refused the request (HTTP {status})"))
+            }
+            other => other,
+        }
+    }
+
+    /// Whether this error reports a rejected credential.
+    #[must_use]
+    pub fn is_unauthorized(&self) -> bool {
+        self.code().is_some_and(errors::is_unauthorized)
     }
 
     /// Returns whether a role tool should try its next provider after this error.

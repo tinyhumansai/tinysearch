@@ -7,6 +7,8 @@ fn codes_are_stable_wire_strings() {
     assert_eq!(RATE_LIMITED, "rate_limited");
     assert_eq!(UNAVAILABLE, "provider_unavailable");
     assert_eq!(INVALID_ARGUMENTS, "invalid_arguments");
+    assert_eq!(BACKEND_UNAUTHORIZED, "backend_unauthorized");
+    assert_eq!(PROVIDER_UNAUTHORIZED, "provider_unauthorized");
 }
 
 #[test]
@@ -28,4 +30,15 @@ fn only_provider_side_conditions_fall_back() {
     assert!(is_fallback_eligible(RATE_LIMITED));
     assert!(is_fallback_eligible(UNAVAILABLE));
     assert!(!is_fallback_eligible(INVALID_ARGUMENTS));
+}
+
+#[test]
+fn credential_codes_are_classified_and_fall_back() {
+    for code in [BACKEND_UNAUTHORIZED, PROVIDER_UNAUTHORIZED] {
+        assert!(ALL.contains(&code));
+        assert!(is_fallback_eligible(code));
+        assert!(is_unauthorized(code));
+        assert_eq!(code_of(&with_code(code, "detail")), Some(code));
+    }
+    assert!(!is_unauthorized(UNAVAILABLE));
 }

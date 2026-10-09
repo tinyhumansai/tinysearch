@@ -551,10 +551,11 @@ async fn http_failures_map_to_stable_codes() -> TestResult<()> {
             json!({"message":"secret query"}),
             Error::RejectedArguments("provider returned HTTP 422".into()),
         ),
+        // The managed backend refused the TinyHumans session or key.
         (
             401,
-            json!({}),
-            Error::Provider("provider returned HTTP 401".into()),
+            json!({"success":false,"error":"Invalid token"}),
+            Error::BackendUnauthorized,
         ),
     ] {
         let (url, server) = mock(status, body).await?;
@@ -1643,7 +1644,7 @@ fn http_classification_categorizes_unavailable() {
 
 #[test]
 fn http_classification_categorizes_other_errors() {
-    let error = super::http::classify_status(403, b"");
+    let error = super::http::classify_status(404, b"");
     assert!(matches!(error, Error::Provider(_)));
 }
 
@@ -1814,4 +1815,135 @@ fn grounding_citations_cap_the_input_chunks_examined() {
         urls.contains(&"https://g.example/0"),
         "an in-bounds chunk is still selected: {urls:?}"
     );
+}
+
+#[tokio::test]
+async fn a_direct_key_rejection_names_the_provider_whose_key_it_was() -> TestResult<()> {
+    for status in [401, 403] {
+        let (url, server) = mock(status, json!({"detail":"invalid api key"})).await?;
+        let provider = BuiltinProvider {
+            name: "tavily",
+            client: Client::new(),
+        };
+        let error = provider
+            .run(
+                &ProviderConfig {
+                    base_url: Some(url),
+                    credential: Some("tavily-key".into()),
+                    ..ProviderConfig::default()
+                },
+                &BackendConfig::default(),
+                &request("tavily_search", json!({"query":"q"})),
+            )
+            .await
+            .err()
+            .ok_or("expected provider error")?;
+        server.await??;
+        assert_eq!(
+            error,
+            Error::ProviderUnauthorized {
+                provider: "tavily".into(),
+                status
+            },
+            "HTTP {status}"
+        );
+        assert_eq!(
+            error.bus_message(),
+            format!(
+                "tinysearch.provider_unauthorized: tavily rejected the configured API key \
+                 (HTTP {status})"
+            )
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_backend_rejection_is_never_attributed_to_the_provider() -> TestResult<()> {
+    let (url, server) = mock(401, json!({"success":false,"error":"Token expired"})).await?;
+    let provider = BuiltinProvider {
+        name: "exa",
+        client: Client::new(),
+    };
+    let error = provider
+        .run(
+            &backend_route(),
+            &backend(url, BackendAuthMode::Session),
+            &request("exa_search", json!({"query":"q"})),
+        )
+        .await
+        .err()
+        .ok_or("expected provider error")?;
+    server.await??;
+    assert_eq!(error, Error::BackendUnauthorized);
+    assert!(
+        error
+            .bus_message()
+            .starts_with("tinysearch.backend_unauthorized: ")
+    );
+    Ok(())
+}
+
+#[test]
+fn http_classification_recognizes_rejected_credentials() {
+    assert_eq!(
+        super::http::classify_status(401, b""),
+        Error::Unauthorized(401)
+    );
+    assert_eq!(
+        super::http::classify_status(403, b""),
+        Error::Unauthorized(403)
+    );
+}
+
+#[tokio::test]
+async fn a_backend_403_is_not_a_dead_session() -> TestResult<()> {
+    let (url, server) = mock(403, json!({"success":false,"error":"Forbidden"})).await?;
+    let provider = BuiltinProvider {
+        name: "exa",
+        client: Client::new(),
+    };
+    let error = provider
+        .run(
+            &backend_route(),
+            &backend(url, BackendAuthMode::Session),
+            &request("exa_search", json!({"query":"q"})),
+        )
+        .await
+        .err()
+        .ok_or("expected provider error")?;
+    server.await??;
+    assert_eq!(
+        error,
+        Error::Provider("backend refused the request (HTTP 403)".into())
+    );
+    assert!(!error.is_unauthorized());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_keyless_provider_refusal_is_not_blamed_on_a_key() -> TestResult<()> {
+    let (url, server) = mock(401, json!({"error":"acl"})).await?;
+    let provider = BuiltinProvider {
+        name: "searxng",
+        client: Client::new(),
+    };
+    let error = provider
+        .run(
+            // A stray credential SearXNG never sends must not count as a key.
+            &ProviderConfig {
+                base_url: Some(url),
+                credential: Some("unused-value".into()),
+                ..ProviderConfig::default()
+            },
+            &BackendConfig::default(),
+            &request("searxng_search", json!({"query":"q"})),
+        )
+        .await
+        .err()
+        .ok_or("expected provider error")?;
+    server.await??;
+    assert_eq!(error, Error::Provider("provider returned HTTP 401".into()));
+    assert!(!error.is_unauthorized());
+    Ok(())
 }

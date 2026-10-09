@@ -57,6 +57,15 @@ fn down() -> Error {
 fn rejected() -> Error {
     Error::RejectedArguments("provider returned HTTP 400".into())
 }
+fn signed_out() -> Error {
+    Error::BackendUnauthorized
+}
+fn bad_key() -> Error {
+    Error::ProviderUnauthorized {
+        provider: "brave".into(),
+        status: 401,
+    }
+}
 
 struct Fixture {
     service: SearchService,
@@ -694,4 +703,64 @@ fn answer_order_drops_quick_only_providers_for_deep() {
         answer_order(usable, &deep),
         [DEEP_RESEARCH, "gemini", "exa"]
     );
+}
+
+#[tokio::test]
+async fn a_rejected_credential_falls_back_to_the_next_provider() -> Result<()> {
+    let fixture = fixture(&[("exa", signed_out), ("brave", bad_key)], |_| {});
+    let response = fixture
+        .service
+        .execute_tool(call(tools::WEB_SEARCH, json!({"query":"rust"})))
+        .await?;
+    assert_eq!(response.fallback_from, ["exa", "brave"]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_rejected_credential_outranks_a_later_unavailable_provider() {
+    let fixture = fixture(
+        &[
+            ("exa", signed_out),
+            ("brave", down),
+            ("tavily", throttled),
+            ("tinyfish", down),
+        ],
+        |_| {},
+    );
+    let result = fixture
+        .service
+        .execute_tool(call(tools::WEB_SEARCH, json!({"query":"rust"})))
+        .await;
+    assert_eq!(result.err(), Some(Error::BackendUnauthorized));
+}
+
+#[tokio::test]
+async fn limit_is_accepted_as_an_alias_of_max_results() -> Result<()> {
+    let fixture = fixture(&[("exa", down)], |_| {});
+    fixture
+        .service
+        .execute_tool(call(tools::WEB_SEARCH, json!({"query":"rust","limit":7})))
+        .await?;
+    assert_eq!(
+        fixture.calls("brave")[0].arguments,
+        json!({"query":"rust","count":7})
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn max_results_wins_over_limit_when_both_are_sent() -> Result<()> {
+    let fixture = fixture(&[("exa", down), ("brave", down)], |_| {});
+    fixture
+        .service
+        .execute_tool(call(
+            tools::WEB_SEARCH,
+            json!({"query":"rust","max_results":3,"limit":9}),
+        ))
+        .await?;
+    assert_eq!(
+        fixture.calls("tavily")[0].arguments,
+        json!({"query":"rust","max_results":3})
+    );
+    Ok(())
 }

@@ -86,7 +86,12 @@ impl SearchService {
                 }
                 Err(error) if explicit.is_none() && error.is_fallback_eligible() => {
                     failed.push(provider);
-                    last_error = Some(error);
+                    // A rejected credential is the one failure the user can
+                    // fix, so a later provider being merely unavailable must
+                    // not replace it as the reported error.
+                    if !last_error.as_ref().is_some_and(Error::is_unauthorized) {
+                        last_error = Some(error);
+                    }
                 }
                 Err(error) => return Err(error),
             }
@@ -119,6 +124,14 @@ fn answer_order(mut usable: Vec<String>, args: &Map<String, Value>) -> Vec<Strin
     usable
 }
 
+/// The requested result count: `max_results`, else its `limit` alias.
+fn result_count(args: &Map<String, Value>) -> Value {
+    args.get("max_results")
+        .or_else(|| args.get("limit"))
+        .cloned()
+        .unwrap_or(Value::Null)
+}
+
 /// Translates generic role arguments into `provider`'s own tool arguments,
 /// keeping only the fields the provider tool declares.
 pub(super) fn provider_arguments(
@@ -133,7 +146,7 @@ pub(super) fn provider_arguments(
         Role::Search if provider == "parallel" => json!({
             "objective":get("query"),
             "search_queries":[get("query")],
-            "num_results":get("max_results")
+            "num_results":result_count(args)
         }),
         Role::Search => {
             let count_field = if provider == "brave" {
@@ -141,7 +154,7 @@ pub(super) fn provider_arguments(
             } else {
                 "max_results"
             };
-            json!({"query":get("query"), count_field:get("max_results")})
+            json!({"query":get("query"), count_field:result_count(args)})
         }
         // Parallel answers through its chat completions API.
         Role::Answer if provider == "parallel" => json!({

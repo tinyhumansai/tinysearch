@@ -73,6 +73,7 @@ pub(super) fn classify_status(status: u16, body: &[u8]) -> Error {
         return error;
     }
     match status {
+        401 | 403 => Error::Unauthorized(status),
         402 | 432 => Error::InsufficientBalance,
         429 => Error::RateLimited,
         400 | 422 => Error::RejectedArguments(detail),
