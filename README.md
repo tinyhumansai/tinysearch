@@ -33,6 +33,9 @@ providers. `depth: "deep"` prefers Gemini Deep Research, which serves only deep
 answers, and falls back to the grounded answer providers; `quick` never uses it.
 Parallel serves only quick answers, so a `deep` call skips it, and pinning
 `provider: "parallel"` with `depth: "deep"` is rejected as invalid arguments.
+When Deep Research is not usable, `deep` is still declared and is answered at
+quick depth by the quick providers (Parallel included), so callers that ask for
+`deep` are never rejected for it.
 
 `all_tools` exposes every available provider tool, `one_provider` exposes one
 provider's tools, and `router` exposes one `search` tool that runs the chosen
