@@ -360,6 +360,65 @@ fn fixture_without_deep_research() -> Fixture {
 }
 
 #[tokio::test]
+async fn deep_request_without_deep_research_is_answered_by_a_quick_provider() -> Result<()> {
+    // Without a usable Deep Research provider the declaration still lists
+    // `deep` (so host-side validation lets it through); the module must
+    // answer it at quick depth, including through the quick-only provider.
+    let fixture = fixture(&[], parallel_only);
+    let spec = role_tool_specs(
+        &fixture.service.available_tools(),
+        &fixture.service.config.presentation,
+        Role::Answer,
+    )
+    .ok_or(Error::UnavailableTool(tools::WEB_ANSWER.into()))?;
+    validate_arguments(&spec, &json!({"query":"why","depth":"deep"}))?;
+
+    let response = fixture
+        .service
+        .execute_tool(call(
+            tools::WEB_ANSWER,
+            json!({"query":"why","depth":"deep"}),
+        ))
+        .await?;
+    assert_eq!(response.provider, "parallel");
+    assert_eq!(fixture.calls("parallel")[0].name, "parallel_chat");
+
+    let response = fixture
+        .service
+        .execute_tool(call(
+            tools::WEB_ANSWER,
+            json!({"query":"why","depth":"deep","provider":"parallel"}),
+        ))
+        .await?;
+    assert_eq!(response.provider, "parallel");
+    Ok(())
+}
+
+#[tokio::test]
+async fn deep_request_without_deep_research_never_reaches_deep_research() -> Result<()> {
+    // Deep Research is configured but unusable as a role provider (the role
+    // order excludes it), so a `deep` request is answered quick in order.
+    let fixture = fixture(&[("gemini", down)], |config| {
+        config.presentation.roles.insert(
+            Role::Answer,
+            vec!["gemini".into(), "exa".into(), "parallel".into()],
+        );
+        with_parallel(config);
+    });
+    let response = fixture
+        .service
+        .execute_tool(call(
+            tools::WEB_ANSWER,
+            json!({"query":"why","depth":"deep"}),
+        ))
+        .await?;
+    assert_eq!(response.provider, "exa");
+    assert_eq!(response.fallback_from, ["gemini"]);
+    assert_eq!(fixture.calls("gemini_deep_research").len(), 0);
+    Ok(())
+}
+
+#[tokio::test]
 async fn explicit_quick_depth_is_rejected_when_only_deep_research_is_usable() {
     // When Deep Research is the sole usable Answer provider, `depth: "quick"`
     // is not servable. It must be rejected rather than silently dropped and
@@ -492,7 +551,7 @@ async fn parallel_serves_every_role_with_its_own_key() -> Result<()> {
     );
     assert_eq!(
         listed[1].parameters["properties"]["depth"]["enum"],
-        json!(["quick"])
+        json!(["quick", "deep"])
     );
 
     let response = fixture
