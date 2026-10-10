@@ -148,11 +148,7 @@ pub fn role_tool_specs(
             // only `quick` there rejected those calls (production traces, Oct
             // 2026). Deep Research alone cannot serve `quick`, so that case
             // declares only `deep`.
-            let depths: &[&str] = if quick {
-                &["quick", "deep"]
-            } else {
-                &["deep"]
-            };
+            let depths: &[&str] = if quick { &["quick", "deep"] } else { &["deep"] };
             let default_depth = if quick { "quick" } else { "deep" };
             let deep_note = if deep {
                 " depth=\"deep\" runs a longer multi-step research report and may return an \
