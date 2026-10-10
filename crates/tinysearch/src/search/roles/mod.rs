@@ -36,14 +36,14 @@ impl SearchService {
             .ok_or_else(|| Error::UnavailableTool(request.name.clone()))?;
         let spec = role_tool_specs(available, &self.config.presentation, role)
             .ok_or_else(|| Error::UnavailableTool(request.name.clone()))?;
+        let usable = role_providers(available, &self.config.presentation, role);
         let mut request = request;
-        downgrade_unservable_depth(role, &spec, &mut request.arguments);
+        downgrade_unservable_depth(role, &usable, &mut request.arguments);
         validate_arguments(&spec, &request.arguments)?;
         let args = request
             .arguments
             .as_object()
             .ok_or(Error::InvalidArguments)?;
-        let usable = role_providers(available, &self.config.presentation, role);
         let explicit = args.get("provider").and_then(Value::as_str);
         if role == Role::Answer {
             let depth = args.get("depth").and_then(Value::as_str);
@@ -189,30 +189,25 @@ pub(super) fn provider_arguments(
 #[path = "mod_tests.rs"]
 mod test;
 
-/// A caller may send `depth: "deep"` from an older declaration (a resumed
-/// thread) after deep research stopped being usable. The advertised schema no
-/// longer lists it, so answer at the depth that is available instead of
-/// rejecting the call.
-fn downgrade_unservable_depth(role: Role, spec: &ToolSpec, arguments: &mut Value) {
-    if role != Role::Answer {
+/// Drops `depth: "deep"` when Deep Research is not among the role's usable
+/// providers, so the call is answered at quick depth instead of failing.
+///
+/// The Answer declaration lists `deep` whenever a quick provider is usable,
+/// because models send it for research questions and hosts validate against
+/// the declaration before the module sees the call. Servability is therefore
+/// decided from `usable` (the role's usable providers), never from the
+/// advertised enum. Only `deep` is downgraded: an explicit `quick` that Deep
+/// Research alone cannot serve, or an unrecognized string, is left for
+/// `validate_arguments` to reject, so a caller's incompatible request is never
+/// silently promoted to Deep Research.
+fn downgrade_unservable_depth(role: Role, usable: &[String], arguments: &mut Value) {
+    if role != Role::Answer || usable.iter().any(|name| name == DEEP_RESEARCH) {
         return;
     }
-    let advertised = &spec.parameters["properties"]["depth"]["enum"];
     let Some(args) = arguments.as_object_mut() else {
         return;
     };
-    let Some(depth) = args.get("depth").and_then(Value::as_str) else {
-        return;
-    };
-    let servable = advertised
-        .as_array()
-        .is_some_and(|depths| depths.iter().any(|d| d.as_str() == Some(depth)));
-    // Only the stale-`deep` case is downgraded. Any other unservable value
-    // (an explicit `quick` that Deep Research alone cannot serve, or an
-    // unrecognized string) is left for `validate_arguments` to reject, so a
-    // caller's incompatible request is never silently promoted to Deep
-    // Research.
-    if !servable && depth == "deep" {
+    if args.get("depth").and_then(Value::as_str) == Some("deep") {
         args.remove("depth");
     }
 }

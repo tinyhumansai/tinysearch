@@ -379,8 +379,8 @@ fn role_tool_schemas_are_generic() -> Result<(), String> {
     assert_eq!(answer.parameters["required"], json!(["query"]));
     assert_eq!(
         answer.parameters["properties"]["depth"],
-        json!({"type":"string","enum":["quick"],"default":"quick"}),
-        "no deep-research provider is configured here"
+        json!({"type":"string","enum":["quick","deep"],"default":"quick"}),
+        "deep is still accepted (answered quick) without a deep-research provider"
     );
 
     let contents = role_tool_specs(&available, &config.presentation, Role::Contents)
@@ -393,7 +393,12 @@ fn role_tool_schemas_are_generic() -> Result<(), String> {
 }
 
 #[test]
-fn deep_depth_is_not_advertised_without_deep_research() -> Result<(), String> {
+fn quick_only_answer_still_accepts_deep_depth() -> Result<(), String> {
+    // Models send `depth: "deep"` for research questions whether or not Deep
+    // Research is usable, and hosts validate against this declaration before
+    // calling the module. Declaring only `quick` made those calls fail
+    // (production traces, Oct 2026), so `deep` stays declared and the module
+    // answers it at quick depth.
     let mut config = SearchConfig::default();
     config
         .providers
@@ -403,9 +408,34 @@ fn deep_depth_is_not_advertised_without_deep_research() -> Result<(), String> {
         role_tool_specs(&available, &config.presentation, Role::Answer).ok_or("missing answer")?;
     assert_eq!(
         answer.parameters["properties"]["depth"],
-        json!({"type":"string","enum":["quick"],"default":"quick"})
+        json!({"type":"string","enum":["quick","deep"],"default":"quick"})
     );
-    assert!(!answer.description.contains("depth=\"deep\""));
+    assert!(
+        answer
+            .description
+            .contains("depth=\"deep\" is answered at quick depth"),
+        "{}",
+        answer.description
+    );
+    assert!(!answer.description.contains("multi-step research report"));
+    Ok(())
+}
+
+#[test]
+fn deep_research_answer_keeps_deep_note() -> Result<(), String> {
+    let mut config = SearchConfig::default();
+    for name in ["gemini", "gemini_deep_research"] {
+        config.providers.insert(name.into(), keyed("google-key"));
+    }
+    let available = configured_provider_tools(&config, &provider_tool_specs());
+    let answer =
+        role_tool_specs(&available, &config.presentation, Role::Answer).ok_or("missing answer")?;
+    assert_eq!(
+        answer.parameters["properties"]["depth"],
+        json!({"type":"string","enum":["quick","deep"],"default":"quick"})
+    );
+    assert!(answer.description.contains("multi-step research report"));
+    assert!(!answer.description.contains("answered at quick depth"));
     Ok(())
 }
 

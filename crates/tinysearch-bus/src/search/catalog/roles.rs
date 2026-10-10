@@ -141,18 +141,20 @@ pub fn role_tool_specs(
         Role::Answer => {
             let quick = providers.iter().any(|name| name != DEEP_RESEARCH);
             let deep = providers.iter().any(|name| name == DEEP_RESEARCH);
-            // Advertise only the depths some usable provider can serve.
-            let depths: &[&str] = match (quick, deep) {
-                (true, true) => &["quick", "deep"],
-                (true, false) => &["quick"],
-                _ => &["deep"],
-            };
+            // With a quick provider, `deep` is always declared: models send it
+            // for research questions regardless, hosts validate against this
+            // schema before the module sees the call, and the module answers
+            // it at quick depth when Deep Research is not usable. Declaring
+            // only `quick` there rejected those calls (production traces, Oct
+            // 2026). Deep Research alone cannot serve `quick`, so that case
+            // declares only `deep`.
+            let depths: &[&str] = if quick { &["quick", "deep"] } else { &["deep"] };
             let default_depth = if quick { "quick" } else { "deep" };
             let deep_note = if deep {
                 " depth=\"deep\" runs a longer multi-step research report and may return an \
                  in-progress status with an interaction id."
             } else {
-                ""
+                " Deep research is not available: depth=\"deep\" is answered at quick depth."
             };
             (
                 format!(
