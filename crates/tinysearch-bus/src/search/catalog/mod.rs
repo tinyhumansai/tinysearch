@@ -24,6 +24,7 @@ pub const PROVIDERS: &[&str] = &[
     "seltz",
     "searxng",
     "keenable",
+    "serply",
 ];
 
 /// Providers that support [`ProviderRoute::Backend`] through the managed
@@ -43,6 +44,7 @@ const KEYED_DIRECT_PROVIDERS: &[&str] = &[
     "seltz",
     "parallel",
     "tinyfish",
+    "serply",
 ];
 
 /// Gemini models the managed backend accepts for grounded generation.
@@ -180,6 +182,12 @@ fn direct_provider_specs() -> BTreeMap<String, Vec<ToolSpec>> {
         json!({"query":text,"max_results":{"type":"integer","minimum":1,"maximum":20},"include_domains":urls(20),"exclude_domains":urls(20),"from_date":text,"to_date":text,"scope":{"type":"string","enum":["news"]}}),
         &["query"],
     )];
+    let serply = vec![tool(
+        "serply_search",
+        "Search Google with Serply",
+        json!({"query":text,"max_results":{"type":"integer","minimum":1,"maximum":20},"country":{"type":"string","minLength":2,"maxLength":2}}),
+        &["query"],
+    )];
     let keenable = vec![
         tool(
             "keenable_search",
@@ -202,6 +210,7 @@ fn direct_provider_specs() -> BTreeMap<String, Vec<ToolSpec>> {
         ("tavily".into(), tavily),
         ("seltz".into(), seltz),
         ("keenable".into(), keenable),
+        ("serply".into(), serply),
     ]
     .into()
 }
