@@ -39,9 +39,9 @@ role that has at least one usable provider:
 
 | Role | Tool | Arguments | Providers (default order) |
 | --- | --- | --- | --- |
-| `search` | `web_search_tool` | `query`, `max_results?` (1-20), `provider?` | exa, brave, tavily, parallel, querit, seltz, searxng, tinyfish, keenable, gemini |
+| `search` | `web_search_tool` | `query`, `max_results?` (1-20), `provider?` | exa, brave, tavily, parallel, querit, seltz, searxng, tinyfish, keenable, firecrawl, gemini |
 | `answer` | `web_answer_tool` | `query`, `depth?` (`quick` or `deep`), `provider?` | gemini, gemini_deep_research, exa, parallel |
-| `contents` | `web_contents_tool` | `urls` (1-10), `query?`, `provider?` | exa, tavily, parallel, tinyfish, keenable |
+| `contents` | `web_contents_tool` | `urls` (1-10), `query?`, `provider?` | exa, tavily, parallel, tinyfish, keenable, firecrawl |
 
 `presentation.roles` sets an ordered provider list per role; an absent or empty
 list uses the default order above. The first usable provider answers. When it
@@ -181,6 +181,16 @@ results with publish dates, and asks for 1,200-character snippets.
 fetches a page live from the source when it is not indexed (a 404). Pages that
 fail are counted in `provider_data.failed_count`; when every page fails, the
 first failure's code is returned so the contents role can fall back.
+
+Firecrawl (`firecrawl_search`, `firecrawl_scrape`) requires a direct credential,
+sent as a bearer token to `https://api.firecrawl.dev`. Search posts to
+`/v2/search` with the query, up to 20 results, and optional `time_range`
+(`day`, `week`, `month`, `year`), two-letter `country`, `include_domains` and
+`exclude_domains`. `firecrawl_scrape` posts each URL (1-10) to `/v2/scrape` for
+markdown. Pages that fail are counted in `provider_data.failed_count`; when
+every page fails, the first failure's code is returned so the contents role
+can fall back. Every request carries `"integration": "_tinysearch"`, which
+names the calling integration and no user or host.
 
 Every response bounds results, citations, snippets, answers, and retained
 provider metadata. Upstream error bodies are not returned or logged. Provider
