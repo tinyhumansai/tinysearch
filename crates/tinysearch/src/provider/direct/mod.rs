@@ -16,6 +16,7 @@ mod parallel;
 mod querit;
 mod searxng;
 mod seltz;
+mod serply;
 mod tavily;
 mod tinyfish;
 
@@ -111,6 +112,7 @@ fn normalize_response(
     let value = match provider {
         "brave" => brave::unwrap(request, &value),
         "querit" => querit::unwrap(&value)?,
+        "serply" => serply::unwrap(request, &value),
         "tavily" => tavily::unwrap(request, value)?,
         "seltz" => seltz::unwrap(
             &value,
@@ -175,6 +177,7 @@ pub(super) fn prepare(
         "querit" => querit::prepare(&request, key),
         "tavily" => tavily::prepare(&request, key),
         "seltz" => seltz::prepare(&request, key),
+        "serply" => serply::prepare(&request, key),
         "tinyfish" => tinyfish::prepare(&request, key),
         _ => Err(Error::UnavailableProvider(provider.into())),
     }

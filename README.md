@@ -39,7 +39,7 @@ role that has at least one usable provider:
 
 | Role | Tool | Arguments | Providers (default order) |
 | --- | --- | --- | --- |
-| `search` | `web_search_tool` | `query`, `max_results?` (1-20), `provider?` | exa, brave, tavily, parallel, querit, seltz, searxng, tinyfish, keenable, gemini |
+| `search` | `web_search_tool` | `query`, `max_results?` (1-20), `provider?` | exa, brave, tavily, parallel, querit, seltz, searxng, tinyfish, keenable, serply, gemini |
 | `answer` | `web_answer_tool` | `query`, `depth?` (`quick` or `deep`), `provider?` | gemini, gemini_deep_research, exa, parallel |
 | `contents` | `web_contents_tool` | `urls` (1-10), `query?`, `provider?` | exa, tavily, parallel, tinyfish, keenable |
 
@@ -162,7 +162,10 @@ backend routes; unsupported routes and tool arguments are rejected.
 
 Seltz (`seltz_search`) also requires a direct credential. It posts to
 `https://api.seltz.ai/v1/search` with `x-api-key`, supports domain and date
-filters plus news scope, and returns up to 20 results. SearXNG
+filters plus news scope, and returns up to 20 results. Serply
+(`serply_search`) also requires a direct credential. It requests Google results
+from `https://api.serply.io/v1/search` with `X-Api-Key`, takes an optional
+two-letter `country`, and returns up to 10 organic results. SearXNG
 (`searxng_search`) is keyless and appears only when the host explicitly enables
 it with a `base_url` and a direct route. It requests `/search?format=json`,
 maps `web` to the `general` category, uses the configured default language,
