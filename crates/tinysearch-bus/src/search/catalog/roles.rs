@@ -16,7 +16,7 @@ pub fn provider_roles(provider: &str) -> &'static [Role] {
         "gemini" => &[Role::Search, Role::Answer],
         "gemini_deep_research" => &[Role::Answer],
         "tinyfish" | "tavily" | "keenable" => &[Role::Search, Role::Contents],
-        "brave" | "querit" | "seltz" | "searxng" => &[Role::Search],
+        "brave" | "querit" | "seltz" | "searxng" | "serply" => &[Role::Search],
         _ => &[],
     }
 }
@@ -27,7 +27,7 @@ pub fn default_role_providers(role: Role) -> &'static [&'static str] {
     match role {
         Role::Search => &[
             "exa", "brave", "tavily", "parallel", "querit", "seltz", "searxng", "tinyfish",
-            "keenable", "gemini",
+            "keenable", "serply", "gemini",
         ],
         Role::Answer => &["gemini", "gemini_deep_research", "exa", "parallel"],
         Role::Contents => &["exa", "tavily", "parallel", "tinyfish", "keenable"],
@@ -48,6 +48,7 @@ pub fn role_provider_tool(role: Role, provider: &str) -> Option<&'static str> {
         (Role::Search, "tinyfish") => "tinyfish_search",
         (Role::Search, "parallel") => "parallel_search",
         (Role::Search, "keenable") => "keenable_search",
+        (Role::Search, "serply") => "serply_search",
         (Role::Answer, "gemini_deep_research") => "gemini_deep_research",
         (Role::Answer, "exa") => "exa_answer",
         (Role::Answer, "parallel") => "parallel_chat",
