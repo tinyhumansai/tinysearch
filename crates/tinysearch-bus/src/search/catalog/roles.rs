@@ -46,7 +46,7 @@ pub fn role_provider_tool(role: Role, provider: &str) -> Option<&'static str> {
         (Role::Search, "tavily") => "tavily_search",
         (Role::Search, "querit") => "querit_search",
         (Role::Search, "seltz") => "seltz_search",
-        (Role::Search, "searxng") => "searxng_search",
+        (Role::Search | Role::Images, "searxng") => "searxng_search",
         (Role::Search, "tinyfish") => "tinyfish_search",
         (Role::Search, "parallel") => "parallel_search",
         (Role::Search, "keenable") => "keenable_search",
@@ -59,7 +59,6 @@ pub fn role_provider_tool(role: Role, provider: &str) -> Option<&'static str> {
         (Role::Contents, "parallel") => "parallel_extract",
         (Role::Contents, "keenable") => "keenable_fetch",
         (Role::Images, "brave") => "brave_image_search",
-        (Role::Images, "searxng") => "searxng_search",
         _ => return None,
     })
 }
@@ -190,35 +189,7 @@ pub fn role_tool_specs(
             }),
             &["urls"],
         ),
-        Role::Images => (
-            format!(
-                "Search the web for images. Each result is the page an image appears on; the \
-                 image's own direct URL is listed with it. Use it to find pictures, photos, \
-                 diagrams, or logos. Backed by: {backed_by} (tried in that order; later providers \
-                 are fallbacks)."
-            ),
-            // `count` is accepted as an alias: it is the image providers' own
-            // name for the result count. `country` narrows results where the
-            // provider supports it and is ignored elsewhere.
-            json!({
-                "query":text,
-                "max_results":{"type":"integer","minimum":1,"maximum":20},
-                "count":{
-                    "type":"integer",
-                    "minimum":1,
-                    "maximum":20,
-                    "description":"Same as max_results."
-                },
-                "country":{
-                    "type":"string",
-                    "minLength":2,
-                    "maxLength":2,
-                    "description":"Two-letter country code to localize results, where supported."
-                },
-                "provider":provider
-            }),
-            &["query"],
-        ),
+        Role::Images => images_declaration(text, provider, &backed_by),
     };
     Some(tool(
         role_tool_name(role),
@@ -226,4 +197,41 @@ pub fn role_tool_specs(
         properties,
         required,
     ))
+}
+
+/// The Images role's description, properties and required fields.
+fn images_declaration(
+    text: Value,
+    provider: Value,
+    backed_by: &str,
+) -> (String, Value, &'static [&'static str]) {
+    (
+        format!(
+            "Search the web for images. Each result is the page an image appears on; the \
+                     image's own direct URL is listed with it. Use it to find pictures, photos, \
+                     diagrams, or logos. Backed by: {backed_by} (tried in that order; later providers \
+                     are fallbacks)."
+        ),
+        // `count` is accepted as an alias: it is the image providers' own
+        // name for the result count. `country` narrows results where the
+        // provider supports it and is ignored elsewhere.
+        json!({
+            "query":text,
+            "max_results":{"type":"integer","minimum":1,"maximum":20},
+            "count":{
+                "type":"integer",
+                "minimum":1,
+                "maximum":20,
+                "description":"Same as max_results."
+            },
+            "country":{
+                "type":"string",
+                "minLength":2,
+                "maxLength":2,
+                "description":"Two-letter country code to localize results, where supported."
+            },
+            "provider":provider
+        }),
+        &["query"],
+    )
 }
