@@ -7,10 +7,17 @@ use tinysearch_bus::{SearchConfig, names::tools};
 
 type Calls = Arc<Mutex<Vec<ExecuteToolRequest>>>;
 
+/// What a stand-in provider does with every call.
+#[derive(Clone, Copy)]
+enum Outcome {
+    Answer(fn() -> ExecuteToolResponse),
+    Fail(fn() -> Error),
+}
+
 /// Records every request and answers with a fixed outcome.
 struct Images {
     calls: Calls,
-    outcome: fn() -> Result<ExecuteToolResponse>,
+    outcome: Outcome,
 }
 
 impl SearchProvider for Images {
@@ -23,7 +30,10 @@ impl SearchProvider for Images {
         if let Ok(mut calls) = self.calls.lock() {
             calls.push(request.clone());
         }
-        let outcome = (self.outcome)();
+        let outcome = match self.outcome {
+            Outcome::Answer(response) => Ok(response()),
+            Outcome::Fail(error) => Err(error()),
+        };
         Box::pin(async move { outcome })
     }
 }
@@ -38,8 +48,8 @@ fn page(title: &str, url: &str) -> SearchResult {
 }
 
 /// Two images from one page, plus a page result with no image.
-fn found() -> Result<ExecuteToolResponse> {
-    Ok(ExecuteToolResponse {
+fn found() -> ExecuteToolResponse {
+    ExecuteToolResponse {
         provider: "ignored".into(),
         results: vec![
             page("Panda", "https://zoo.example/panda"),
@@ -55,24 +65,22 @@ fn found() -> Result<ExecuteToolResponse> {
         ]})),
         role: None,
         fallback_from: vec![],
-    })
+    }
 }
 
 /// Page results only, no images.
-fn pages_only() -> Result<ExecuteToolResponse> {
-    let mut response = found()?;
+fn pages_only() -> ExecuteToolResponse {
+    let mut response = found();
     response.provider_data = None;
-    Ok(response)
+    response
 }
 
-fn throttled() -> Result<ExecuteToolResponse> {
-    Err(Error::RateLimited)
+fn throttled() -> Error {
+    Error::RateLimited
 }
 
-fn rejected() -> Result<ExecuteToolResponse> {
-    Err(Error::RejectedArguments(
-        "provider returned HTTP 400".into(),
-    ))
+fn rejected() -> Error {
+    Error::RejectedArguments("provider returned HTTP 400".into())
 }
 
 struct Fixture {
@@ -81,10 +89,7 @@ struct Fixture {
     searxng: Calls,
 }
 
-fn fixture(
-    brave: fn() -> Result<ExecuteToolResponse>,
-    searxng: fn() -> Result<ExecuteToolResponse>,
-) -> Fixture {
+fn fixture(brave: Outcome, searxng: Outcome) -> Fixture {
     let mut config = SearchConfig::default();
     config.providers.insert(
         "brave".into(),
@@ -138,7 +143,7 @@ fn images(arguments: Value) -> ExecuteToolRequest {
 
 #[tokio::test]
 async fn brave_serves_images_and_results_follow_the_image_list() -> Result<()> {
-    let fixture = fixture(found, found);
+    let fixture = fixture(Outcome::Answer(found), Outcome::Answer(found));
     let response = fixture
         .service
         .execute_tool(images(
@@ -186,7 +191,7 @@ async fn brave_serves_images_and_results_follow_the_image_list() -> Result<()> {
 
 #[tokio::test]
 async fn images_fall_back_to_searxng_with_its_images_category() -> Result<()> {
-    let fixture = fixture(throttled, found);
+    let fixture = fixture(Outcome::Fail(throttled), Outcome::Answer(found));
     let response = fixture
         .service
         .execute_tool(images(
@@ -208,7 +213,7 @@ async fn images_fall_back_to_searxng_with_its_images_category() -> Result<()> {
 
 #[tokio::test]
 async fn an_explicit_image_provider_is_not_fallen_back_from() {
-    let fixture = fixture(throttled, found);
+    let fixture = fixture(Outcome::Fail(throttled), Outcome::Answer(found));
     let error = fixture
         .service
         .execute_tool(images(json!({"query":"red panda","provider":"brave"})))
@@ -219,7 +224,7 @@ async fn an_explicit_image_provider_is_not_fallen_back_from() {
 
 #[tokio::test]
 async fn a_rejected_image_query_stops_the_call() {
-    let fixture = fixture(rejected, found);
+    let fixture = fixture(Outcome::Fail(rejected), Outcome::Answer(found));
     let error = fixture
         .service
         .execute_tool(images(json!({"query":"red panda"})))
@@ -230,7 +235,7 @@ async fn a_rejected_image_query_stops_the_call() {
 
 #[tokio::test]
 async fn a_response_without_images_is_empty() -> Result<()> {
-    let fixture = fixture(pages_only, found);
+    let fixture = fixture(Outcome::Answer(pages_only), Outcome::Answer(found));
     let response = fixture
         .service
         .execute_tool(images(json!({"query":"red panda"})))
@@ -248,7 +253,7 @@ async fn a_response_without_images_is_empty() -> Result<()> {
 
 #[tokio::test]
 async fn image_arguments_are_validated_against_the_role_schema() {
-    let fixture = fixture(found, found);
+    let fixture = fixture(Outcome::Answer(found), Outcome::Answer(found));
     for arguments in [
         json!({}),
         json!({"query":"red panda","max_results":21}),
