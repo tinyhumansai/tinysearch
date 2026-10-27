@@ -1145,8 +1145,8 @@ async fn brave_direct_operations_map_and_normalize() -> TestResult<()> {
             assert_eq!(response.results[0].url, "https://source.test/page");
             assert_eq!(response.citations[0].url, "https://source.test/page");
             assert_eq!(
-                response.provider_data.ok_or("missing provider data")?["image_assets"][0]["image_url"],
-                "https://image.test"
+                response.provider_data.ok_or("missing provider data")?["image_assets"],
+                json!([{"source_url":"https://source.test/page","image_url":"https://image.test","title":"Image"}])
             );
         }
     }
