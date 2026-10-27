@@ -6,7 +6,7 @@
 //! top; the wording here is part of the contract.
 //!
 //! A result whose page carries an image listed under
-//! [`IMAGE_ASSETS`](crate::IMAGE_ASSETS) is followed by that image's direct
+//! [`IMAGE_ASSETS`] is followed by that image's direct
 //! URL (`Image: <url>` in text, an inline image in markdown), so image search
 //! output keeps both the image and the page it came from.
 
@@ -85,7 +85,7 @@ fn truncate(s: &str, max_chars: usize, suffix: &str) -> String {
 }
 
 /// The direct image URL for each result, paired from
-/// [`IMAGE_ASSETS`](crate::IMAGE_ASSETS) by source page. Each asset pairs at
+/// [`IMAGE_ASSETS`] by source page. Each asset pairs at
 /// most once, in order, so several images from one page stay distinct.
 fn result_images(response: &ExecuteToolResponse) -> Vec<Option<&str>> {
     let assets: Vec<(&str, &str)> = response
