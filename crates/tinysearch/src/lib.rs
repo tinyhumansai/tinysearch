@@ -14,7 +14,7 @@ pub use tinybus_module::linked_module;
 pub use tinysearch_bus;
 pub use tinysearch_bus::{
     BACKEND_PROVIDERS, BackendAuthMode, BackendConfig, CONTRACT_VERSION, Citation,
-    ExecuteToolRequest, ExecuteToolResponse, INTERFACE, ListToolsResponse, METHODS, OBJECT_PATH,
+    ExecuteToolRequest, ExecuteToolResponse, IMAGE_ASSETS, INTERFACE, ListToolsResponse, METHODS, OBJECT_PATH,
     PROVIDERS, PresentationConfig, PresentationMode, ProviderConfig, ProviderRoute, Role,
     SearchConfig, SearchResult, SearchStatus, ToolSpec, default_role_providers, errors,
     is_compatible, names, provider_roles, role_tool_name, version,

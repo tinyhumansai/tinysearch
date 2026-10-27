@@ -365,6 +365,14 @@ pub enum SearchStatus {
     InProgress,
 }
 
+/// The `provider_data` key holding the images an image search found.
+///
+/// Its value is an array of objects, one per image, each with `image_url`
+/// (the image itself), `source_url` (the page it appears on) and an optional
+/// `title`. A [`Role::Images`] response lists its images here, and its
+/// `results[i]` is the source page of entry `i`.
+pub const IMAGE_ASSETS: &str = "image_assets";
+
 /// Provider-independent tool result.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExecuteToolResponse {
@@ -378,7 +386,8 @@ pub struct ExecuteToolResponse {
     pub answer: Option<String>,
     /// Outcome status.
     pub status: SearchStatus,
-    /// Optional provider-specific data.
+    /// Optional provider-specific data. Image searches put their images
+    /// under [`IMAGE_ASSETS`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider_data: Option<Value>,
     /// Role served, when the call was a role tool.
