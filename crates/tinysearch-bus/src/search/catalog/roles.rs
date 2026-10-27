@@ -189,7 +189,7 @@ pub fn role_tool_specs(
             }),
             &["urls"],
         ),
-        Role::Images => images_declaration(text, provider, &backed_by),
+        Role::Images => images_declaration(&text, &provider, &backed_by),
     };
     Some(tool(
         role_tool_name(role),
@@ -201,16 +201,16 @@ pub fn role_tool_specs(
 
 /// The Images role's description, properties and required fields.
 fn images_declaration(
-    text: Value,
-    provider: Value,
+    text: &Value,
+    provider: &Value,
     backed_by: &str,
 ) -> (String, Value, &'static [&'static str]) {
     (
         format!(
             "Search the web for images. Each result is the page an image appears on; the \
-                     image's own direct URL is listed with it. Use it to find pictures, photos, \
-                     diagrams, or logos. Backed by: {backed_by} (tried in that order; later providers \
-                     are fallbacks)."
+             image's own direct URL is listed with it. Use it to find pictures, photos, \
+             diagrams, or logos. Backed by: {backed_by} (tried in that order; later providers \
+             are fallbacks)."
         ),
         // `count` is accepted as an alias: it is the image providers' own
         // name for the result count. `country` narrows results where the
