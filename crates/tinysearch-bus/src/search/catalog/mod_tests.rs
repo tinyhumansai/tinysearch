@@ -81,12 +81,17 @@ fn parallel_is_direct_only() {
     let extract = &available["parallel"][1];
     assert_eq!(extract.name, "parallel_extract");
     assert!(extract.parameters["properties"].get("excerpts").is_none());
-    for role in Role::ALL {
+    for role in [Role::Search, Role::Answer, Role::Contents] {
         assert_eq!(
             role_providers(&available, &config.presentation, role),
             ["parallel"]
         );
     }
+    assert_eq!(
+        role_providers(&available, &config.presentation, Role::Images).len(),
+        0,
+        "Parallel has no image search"
+    );
 }
 
 #[test]
@@ -308,11 +313,20 @@ fn roles_mode_lists_one_tool_per_served_role() {
     let listed = select_tools(&available, &config.presentation);
     assert_eq!(
         names(&listed),
-        [tools::WEB_SEARCH, tools::WEB_ANSWER, tools::WEB_CONTENTS]
+        [
+            tools::WEB_SEARCH,
+            tools::WEB_ANSWER,
+            tools::WEB_CONTENTS,
+            tools::WEB_IMAGE_SEARCH
+        ]
     );
     assert_eq!(
         role_providers(&available, &config.presentation, Role::Search),
         ["exa", "brave", "tinyfish", "gemini"]
+    );
+    assert_eq!(
+        role_providers(&available, &config.presentation, Role::Images),
+        ["brave"]
     );
     assert_eq!(
         role_providers(&available, &config.presentation, Role::Answer),
@@ -331,7 +345,14 @@ fn roles_mode_without_backend_credential_drops_backend_providers() {
     let available = configured_provider_tools(&config, &provider_tool_specs());
     let listed = select_tools(&available, &config.presentation);
     // Own-key providers survive: TinyFish runs on its key, not the backend.
-    assert_eq!(names(&listed), [tools::WEB_SEARCH, tools::WEB_CONTENTS]);
+    assert_eq!(
+        names(&listed),
+        [
+            tools::WEB_SEARCH,
+            tools::WEB_CONTENTS,
+            tools::WEB_IMAGE_SEARCH
+        ]
+    );
     assert_eq!(
         listed.tools[0].parameters["properties"]["provider"]["enum"],
         json!(["brave", "tinyfish"])
