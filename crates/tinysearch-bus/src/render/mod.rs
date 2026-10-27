@@ -175,14 +175,14 @@ pub fn render_markdown(
             item.title.trim()
         };
         let _ = write!(out, "\n## [{title}]({})\n", item.url.trim());
-        if let Some(image) = images[index] {
-            let _ = write!(out, "![{title}]({image})\n\n");
-        }
         if let Some(date) = non_empty(item.published.as_deref()) {
             let _ = write!(out, "_Published: {date}_\n\n");
         }
         if let Some(snippet) = non_empty(item.snippet.as_deref()) {
             let _ = writeln!(out, "> {}", truncate(snippet, TEXT_EXCERPT_CHARS, "…"));
+        }
+        if let Some(image) = images[index] {
+            let _ = write!(out, "\n![{title}]({image})\n");
         }
     }
     if !response.citations.is_empty() {

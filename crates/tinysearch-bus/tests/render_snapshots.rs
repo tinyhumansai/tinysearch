@@ -121,8 +121,8 @@ fn image_markdown_rendering_is_byte_identical() {
     let expected = "# Image results for: red panda (via SearXNG, after Brave)\n\
 \n\
 ## [Red panda](https://zoo.example/panda)\n\
-![Red panda](https://img.example/panda.jpg)\n\
 \n\
+![Red panda](https://img.example/panda.jpg)\n\
 \n\
 ### Sources\n\
 - [Red panda](https://zoo.example/panda)\n";

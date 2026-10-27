@@ -150,7 +150,7 @@ fn image_results_list_each_image_under_its_page() {
 
     let markdown = render_markdown(&image_fixture(), "red panda", 5);
     assert!(markdown.contains(
-        "## [Red panda](https://zoo.example/panda)\n![Red panda](https://img.example/1.jpg)"
+        "## [Red panda](https://zoo.example/panda)\n\n![Red panda](https://img.example/1.jpg)"
     ));
     assert!(markdown.contains("![Red panda, again](https://img.example/2.jpg)"));
 }
