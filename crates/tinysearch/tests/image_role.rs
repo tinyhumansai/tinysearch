@@ -126,8 +126,6 @@ async fn a_rate_limited_brave_falls_back_to_searxng_images() -> TestResult<()> {
         data[IMAGE_ASSETS][0]["image_url"],
         "https://img.test/panda.jpg"
     );
-    assert!(
-        render_text(&response, "red panda", 5).contains("Image: https://img.test/panda.jpg")
-    );
+    assert!(render_text(&response, "red panda", 5).contains("Image: https://img.test/panda.jpg"));
     Ok(())
 }

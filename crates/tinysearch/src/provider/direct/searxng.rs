@@ -4,10 +4,10 @@ use crate::{
     Citation, Error, ExecuteToolRequest, ExecuteToolResponse, ProviderConfig, Result, SearchResult,
     SearchStatus,
 };
-use tinysearch_bus::IMAGE_ASSETS;
 use reqwest::Client;
 use serde_json::{Value, json};
 use std::time::Duration;
+use tinysearch_bus::IMAGE_ASSETS;
 
 const MAX_RESULTS: usize = 50;
 

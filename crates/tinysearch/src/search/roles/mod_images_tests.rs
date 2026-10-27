@@ -70,7 +70,9 @@ fn throttled() -> Result<ExecuteToolResponse> {
 }
 
 fn rejected() -> Result<ExecuteToolResponse> {
-    Err(Error::RejectedArguments("provider returned HTTP 400".into()))
+    Err(Error::RejectedArguments(
+        "provider returned HTTP 400".into(),
+    ))
 }
 
 struct Fixture {
@@ -167,9 +169,17 @@ async fn brave_serves_images_and_results_follow_the_image_list() -> Result<()> {
             ("", "https://zoo.example/panda")
         ]
     );
-    assert!(response.results.iter().all(|result| result.snippet.is_none()));
+    assert!(
+        response
+            .results
+            .iter()
+            .all(|result| result.snippet.is_none())
+    );
     let data = response.provider_data.ok_or(Error::InvalidArguments)?;
-    assert_eq!(data[IMAGE_ASSETS][1]["image_url"], "https://img.example/2.jpg");
+    assert_eq!(
+        data[IMAGE_ASSETS][1]["image_url"],
+        "https://img.example/2.jpg"
+    );
     assert_eq!(data["sources"], json!(["x"]));
     Ok(())
 }
@@ -179,7 +189,9 @@ async fn images_fall_back_to_searxng_with_its_images_category() -> Result<()> {
     let fixture = fixture(throttled, found);
     let response = fixture
         .service
-        .execute_tool(images(json!({"query":"red panda","count":3,"country":"gb"})))
+        .execute_tool(images(
+            json!({"query":"red panda","count":3,"country":"gb"}),
+        ))
         .await?;
     assert_eq!(response.provider, "searxng");
     assert_eq!(response.fallback_from, ["brave"]);
@@ -227,7 +239,10 @@ async fn a_response_without_images_is_empty() -> Result<()> {
     assert_eq!(response.status, SearchStatus::Empty);
     assert_eq!(response.results.len(), 0);
     // Without a count the provider's own default applies.
-    assert_eq!(sent(&fixture.brave)[0].arguments, json!({"query":"red panda"}));
+    assert_eq!(
+        sent(&fixture.brave)[0].arguments,
+        json!({"query":"red panda"})
+    );
     Ok(())
 }
 
