@@ -19,6 +19,9 @@ pub mod tools {
     pub const WEB_ANSWER: &str = "web_answer_tool";
     /// Contents of specific URLs ([`Role::Contents`](crate::Role::Contents)).
     pub const WEB_CONTENTS: &str = "web_contents_tool";
+    /// Images matching a query, with each image's source page
+    /// ([`Role::Images`](crate::Role::Images)).
+    pub const WEB_IMAGE_SEARCH: &str = "web_image_search_tool";
 }
 /// Returns the tool name that presents `role`.
 #[must_use]
@@ -27,6 +30,7 @@ pub const fn role_tool_name(role: Role) -> &'static str {
         Role::Search => tools::WEB_SEARCH,
         Role::Answer => tools::WEB_ANSWER,
         Role::Contents => tools::WEB_CONTENTS,
+        Role::Images => tools::WEB_IMAGE_SEARCH,
     }
 }
 /// Returns the role a tool name presents, if it is a role tool.
