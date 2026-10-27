@@ -161,6 +161,62 @@ async fn searxng_maps_categories_language_and_normalizes_up_to_fifty() -> TestRe
 }
 
 #[tokio::test]
+async fn searxng_image_results_carry_their_image_urls() -> TestResult<()> {
+    let (url, server) = mock(
+        200,
+        json!({"results":[
+            {"url":"https://zoo.test/panda","title":"Panda","img_src":"https://img.test/panda.jpg"},
+            {"url":"https://zoo.test/cub","title":" ","img_src":" //img.test/cub.jpg "},
+            {"url":"https://zoo.test/relative","title":"Relative","img_src":"/static/x.jpg"},
+            {"url":"https://zoo.test/inline","title":"Inline","img_src":"data:image/png;base64,AA"},
+            {"url":"https://zoo.test/plain","title":"No image"}
+        ]}),
+    )
+    .await?;
+    let response = run(
+        &Client::new(),
+        "searxng",
+        &ProviderConfig {
+            base_url: Some(url),
+            ..Default::default()
+        },
+        &request(
+            "searxng_search",
+            json!({"query":"red panda","categories":["images"]}),
+        ),
+    )
+    .await?;
+    let sent = server.await??;
+    assert!(sent.contains("categories=images"));
+    assert_eq!(response.results.len(), 5);
+    let data = response.provider_data.ok_or("missing provider data")?;
+    assert_eq!(
+        data[tinysearch_bus::IMAGE_ASSETS],
+        json!([
+            {"source_url":"https://zoo.test/panda","image_url":"https://img.test/panda.jpg","title":"Panda"},
+            {"source_url":"https://zoo.test/cub","image_url":"https://img.test/cub.jpg","title":"https://zoo.test/cub"}
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn image_assets_need_both_urls_and_keep_a_title_only_when_given() {
+    assert_eq!(image_asset(" ", "https://img.test/a.jpg", None), None);
+    assert_eq!(image_asset("https://page.test", "", Some("t")), None);
+    assert_eq!(
+        image_asset("https://page.test", "https://img.test/a.jpg", Some("  ")),
+        Some(json!({"source_url":"https://page.test","image_url":"https://img.test/a.jpg"}))
+    );
+    let long = "x".repeat(400);
+    let asset = image_asset("https://page.test", "https://img.test/a.jpg", Some(&long));
+    assert_eq!(
+        asset.and_then(|asset| asset["title"].as_str().map(str::len)),
+        Some(300)
+    );
+}
+
+#[tokio::test]
 async fn direct_errors_hide_query_key_and_response_body() -> TestResult<()> {
     let (url, server) = mock(403, json!({"message":"private words secret-key"})).await?;
     let error = run(

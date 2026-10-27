@@ -78,3 +78,53 @@ _Published: 2026-09-01_\n\
         expected
     );
 }
+
+fn image_fixture() -> ExecuteToolResponse {
+    ExecuteToolResponse {
+        provider: "searxng".into(),
+        results: vec![SearchResult {
+            title: "Red panda".into(),
+            url: "https://zoo.example/panda".into(),
+            snippet: None,
+            published: None,
+        }],
+        citations: vec![Citation {
+            url: "https://zoo.example/panda".into(),
+            title: Some("Red panda".into()),
+        }],
+        answer: None,
+        status: SearchStatus::Ok,
+        provider_data: Some(serde_json::json!({"image_assets":[{
+            "source_url":"https://zoo.example/panda",
+            "image_url":"https://img.example/panda.jpg",
+            "title":"Red panda"
+        }]})),
+        role: Some(Role::Images),
+        fallback_from: vec!["brave".into()],
+    }
+}
+
+#[test]
+fn image_text_rendering_is_byte_identical() {
+    let expected = "Image results for: red panda (via SearXNG, after Brave)\n\
+1. Red panda\n\
+\x20  https://zoo.example/panda\n\
+\x20  Image: https://img.example/panda.jpg\n\
+\n\
+Sources:\n\
+[1] Red panda — https://zoo.example/panda";
+    assert_eq!(render_text(&image_fixture(), "red panda", 5), expected);
+}
+
+#[test]
+fn image_markdown_rendering_is_byte_identical() {
+    let expected = "# Image results for: red panda (via SearXNG, after Brave)\n\
+\n\
+## [Red panda](https://zoo.example/panda)\n\
+\n\
+![Red panda](https://img.example/panda.jpg)\n\
+\n\
+### Sources\n\
+- [Red panda](https://zoo.example/panda)\n";
+    assert_eq!(render_markdown(&image_fixture(), "red panda", 5), expected);
+}

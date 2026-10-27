@@ -135,19 +135,39 @@ fn normalize_response(
             .flatten()
             .take(super::MAX_RESULTS)
             .filter_map(|item| {
-                let source_url = item.get("url")?.as_str()?;
-                let image_url = item.pointer("/properties/url")?.as_str()?;
-                Some(serde_json::json!({"source_url":source_url,"image_url":image_url}))
+                image_asset(
+                    item.get("url")?.as_str()?,
+                    item.pointer("/properties/url")?.as_str()?,
+                    item.get("title").and_then(Value::as_str),
+                )
             })
             .collect();
         if !assets.is_empty() {
             result
                 .provider_data
-                .get_or_insert_with(|| serde_json::json!({}))["image_assets"] =
+                .get_or_insert_with(|| serde_json::json!({}))[tinysearch_bus::IMAGE_ASSETS] =
                 Value::Array(assets);
         }
     }
     Ok(result)
+}
+
+/// One [`IMAGE_ASSETS`](tinysearch_bus::IMAGE_ASSETS) entry, or `None` when
+/// either URL is empty. Both URLs and the title are clipped like results.
+fn image_asset(source_url: &str, image_url: &str, title: Option<&str>) -> Option<Value> {
+    let source_url = source_url.trim();
+    let image_url = image_url.trim();
+    if source_url.is_empty() || image_url.is_empty() {
+        return None;
+    }
+    let mut asset = serde_json::json!({
+        "source_url":source_url.chars().take(2048).collect::<String>(),
+        "image_url":image_url.chars().take(2048).collect::<String>()
+    });
+    if let Some(title) = title.map(str::trim).filter(|title| !title.is_empty()) {
+        asset["title"] = Value::from(title.chars().take(300).collect::<String>());
+    }
+    Some(asset)
 }
 
 pub(super) fn prepare(

@@ -4,13 +4,18 @@
 //! `(via <Provider>)` marker that UIs may parse, then the answer, numbered
 //! results and a `Sources:` list. Hosts layer their own structured metadata on
 //! top; the wording here is part of the contract.
+//!
+//! A result whose page carries an image listed under
+//! [`IMAGE_ASSETS`] is followed by that image's direct
+//! URL (`Image: <url>` in text, an inline image in markdown), so image search
+//! output keeps both the image and the page it came from.
 
 use std::fmt::Write as _;
 
 use serde_json::Value;
 
 use crate::labels::provider_label;
-use crate::{ExecuteToolResponse, Role, SearchStatus};
+use crate::{ExecuteToolResponse, IMAGE_ASSETS, Role, SearchStatus};
 
 /// Snippets in rendered output are capped at this many characters.
 pub const TEXT_EXCERPT_CHARS: usize = 500;
@@ -55,6 +60,10 @@ pub fn heading(response: &ExecuteToolResponse, subject: &str) -> String {
         (_, SearchStatus::InProgress) => format!("Research still running for: {subject} ({via})"),
         (Some(Role::Answer), _) => format!("Answer for: {subject} ({via})"),
         (Some(Role::Contents), _) => format!("Page contents for: {subject} ({via})"),
+        (Some(Role::Images), _) if response.results.is_empty() => {
+            format!("No images found for: {subject} ({via})")
+        }
+        (Some(Role::Images), _) => format!("Image results for: {subject} ({via})"),
         _ if response.results.is_empty() && response.answer.is_none() => {
             format!("No results found for: {subject} ({via})")
         }
@@ -75,6 +84,38 @@ fn truncate(s: &str, max_chars: usize, suffix: &str) -> String {
     }
 }
 
+/// The direct image URL for each result, paired from
+/// [`IMAGE_ASSETS`] by source page. Each asset pairs at
+/// most once, in order, so several images from one page stay distinct.
+fn result_images(response: &ExecuteToolResponse) -> Vec<Option<&str>> {
+    let assets: Vec<(&str, &str)> = response
+        .provider_data
+        .as_ref()
+        .and_then(|data| data.get(IMAGE_ASSETS))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|asset| {
+            let source = asset.get("source_url")?.as_str()?.trim();
+            let image = non_empty(asset.get("image_url")?.as_str())?;
+            Some((source, image))
+        })
+        .collect();
+    let mut used = vec![false; assets.len()];
+    response
+        .results
+        .iter()
+        .map(|result| {
+            let index = assets
+                .iter()
+                .enumerate()
+                .position(|(index, (source, _))| !used[index] && *source == result.url.trim())?;
+            used[index] = true;
+            Some(assets[index].1)
+        })
+        .collect()
+}
+
 /// Plain-text rendering, showing at most `max_results` results.
 #[must_use]
 pub fn render_text(response: &ExecuteToolResponse, subject: &str, max_results: usize) -> String {
@@ -83,6 +124,7 @@ pub fn render_text(response: &ExecuteToolResponse, subject: &str, max_results: u
         lines.push(String::new());
         lines.push(answer.to_string());
     }
+    let images = result_images(response);
     for (index, item) in response.results.iter().take(max_results).enumerate() {
         let title = if item.title.trim().is_empty() {
             "No title"
@@ -91,6 +133,9 @@ pub fn render_text(response: &ExecuteToolResponse, subject: &str, max_results: u
         };
         lines.push(format!("{}. {}", index + 1, title));
         lines.push(format!("   {}", item.url.trim()));
+        if let Some(image) = images[index] {
+            lines.push(format!("   Image: {image}"));
+        }
         if let Some(date) = non_empty(item.published.as_deref()) {
             lines.push(format!("   Published: {date}"));
         }
@@ -122,7 +167,8 @@ pub fn render_markdown(
     if let Some(answer) = non_empty(response.answer.as_deref()) {
         let _ = write!(out, "\n{answer}\n");
     }
-    for item in response.results.iter().take(max_results) {
+    let images = result_images(response);
+    for (index, item) in response.results.iter().take(max_results).enumerate() {
         let title = if item.title.trim().is_empty() {
             "Untitled"
         } else {
@@ -134,6 +180,9 @@ pub fn render_markdown(
         }
         if let Some(snippet) = non_empty(item.snippet.as_deref()) {
             let _ = writeln!(out, "> {}", truncate(snippet, TEXT_EXCERPT_CHARS, "…"));
+        }
+        if let Some(image) = images[index] {
+            let _ = write!(out, "\n![{title}]({image})\n");
         }
     }
     if !response.citations.is_empty() {

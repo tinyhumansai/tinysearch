@@ -112,3 +112,57 @@ fn subject_reads_query_urls_or_objective() {
     assert_eq!(subject(&serde_json::json!({"objective": " o "})), "o");
     assert_eq!(subject(&serde_json::json!({})), "");
 }
+
+fn image_fixture() -> ExecuteToolResponse {
+    let page = |title: &str, url: &str| SearchResult {
+        title: title.into(),
+        url: url.into(),
+        snippet: None,
+        published: None,
+    };
+    let mut images = response(Some(Role::Images));
+    images.provider = "brave".into();
+    images.results = vec![
+        page("Red panda", "https://zoo.example/panda"),
+        page("Red panda, again", "https://zoo.example/panda"),
+        page("No image", "https://zoo.example/text"),
+    ];
+    images.provider_data = Some(serde_json::json!({IMAGE_ASSETS:[
+        {"source_url":"https://zoo.example/panda","image_url":"https://img.example/1.jpg"},
+        {"source_url":"https://zoo.example/panda","image_url":"https://img.example/2.jpg"},
+        {"source_url":"https://zoo.example/other","image_url":" "}
+    ]}));
+    images
+}
+
+#[test]
+fn image_results_list_each_image_under_its_page() {
+    let text = render_text(&image_fixture(), "red panda", 5);
+    assert!(text.starts_with("Image results for: red panda (via Brave)"));
+    assert!(text.contains(
+        "1. Red panda\n   https://zoo.example/panda\n   Image: https://img.example/1.jpg"
+    ));
+    assert!(text.contains(
+        "2. Red panda, again\n   https://zoo.example/panda\n   Image: https://img.example/2.jpg"
+    ));
+    assert!(text.contains("3. No image\n   https://zoo.example/text"));
+    assert_eq!(text.matches("Image: ").count(), 2);
+
+    let markdown = render_markdown(&image_fixture(), "red panda", 5);
+    assert!(markdown.contains(
+        "## [Red panda](https://zoo.example/panda)\n\n![Red panda](https://img.example/1.jpg)"
+    ));
+    assert!(markdown.contains("![Red panda, again](https://img.example/2.jpg)"));
+}
+
+#[test]
+fn an_image_search_without_images_says_so() {
+    let mut none = image_fixture();
+    none.results.clear();
+    none.provider_data = None;
+    none.status = SearchStatus::Empty;
+    assert_eq!(
+        render_text(&none, "red panda", 5),
+        "No images found for: red panda (via Brave)"
+    );
+}

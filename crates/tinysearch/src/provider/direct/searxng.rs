@@ -7,6 +7,7 @@ use crate::{
 use reqwest::Client;
 use serde_json::{Value, json};
 use std::time::Duration;
+use tinysearch_bus::IMAGE_ASSETS;
 
 const MAX_RESULTS: usize = 50;
 
@@ -89,8 +90,22 @@ fn clipped(text: &str, max: usize) -> String {
     text.trim().chars().take(max).collect()
 }
 
+/// An image result's direct image URL: `img_src`, made absolute when the
+/// instance returns it scheme-relative. Anything that is not then an
+/// `http(s)` URL (a relative path, a `data:` URI) is dropped.
+fn image_url(item: &Value) -> Option<String> {
+    let src = item.get("img_src")?.as_str()?.trim();
+    let src = if src.starts_with("//") {
+        format!("https:{src}")
+    } else {
+        src.to_owned()
+    };
+    (src.starts_with("https://") || src.starts_with("http://")).then_some(src)
+}
+
 fn normalize(value: &Value, max_results: usize) -> ExecuteToolResponse {
     let mut results = Vec::new();
+    let mut assets = Vec::new();
     let mut citations = Vec::new();
     let mut sources = Vec::new();
     for item in value
@@ -136,6 +151,11 @@ fn normalize(value: &Value, max_results: usize) -> ExecuteToolResponse {
                 title: Some(title.clone()),
             });
         }
+        if let Some(image_url) = image_url(item)
+            && let Some(asset) = super::image_asset(&url, &image_url, Some(&title))
+        {
+            assets.push(asset);
+        }
         results.push(SearchResult {
             title,
             url,
@@ -157,7 +177,11 @@ fn normalize(value: &Value, max_results: usize) -> ExecuteToolResponse {
         citations,
         answer: None,
         status,
-        provider_data: Some(json!({"sources":sources})),
+        provider_data: Some(if assets.is_empty() {
+            json!({"sources":sources})
+        } else {
+            json!({"sources":sources, IMAGE_ASSETS:assets})
+        }),
         role: None,
         fallback_from: Vec::new(),
     }

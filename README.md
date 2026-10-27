@@ -42,6 +42,7 @@ role that has at least one usable provider:
 | `search` | `web_search_tool` | `query`, `max_results?` (1-20), `provider?` | exa, brave, tavily, parallel, querit, seltz, searxng, tinyfish, keenable, gemini |
 | `answer` | `web_answer_tool` | `query`, `depth?` (`quick` or `deep`), `provider?` | gemini, gemini_deep_research, exa, parallel |
 | `contents` | `web_contents_tool` | `urls` (1-10), `query?`, `provider?` | exa, tavily, parallel, tinyfish, keenable |
+| `images` | `web_image_search_tool` | `query`, `max_results?` (1-20, alias `count`), `country?` (2 letters), `provider?` | brave, searxng |
 
 `presentation.roles` sets an ordered provider list per role; an absent or empty
 list uses the default order above. The first usable provider answers. When it
@@ -57,6 +58,17 @@ Parallel serves only quick answers, so a `deep` call skips it, and pinning
 When Deep Research is not usable, `deep` is still declared and is answered at
 quick depth by the quick providers (Parallel included), so callers that ask for
 `deep` are never rejected for it.
+
+`images` searches for images: Brave through `brave_image_search`, SearXNG
+through `searxng_search` with its `images` category. `country` reaches Brave
+only. Its response lists the images under `provider_data.image_assets`
+(`tinysearch_bus::IMAGE_ASSETS`), one `{image_url, source_url, title?}` entry
+per image, and `results[i]` is the page image `i` appears on, so a result
+without an image is never returned and a response with no image is `empty`.
+The canonical renderings in `tinysearch_bus::render` print each image's URL
+under its page (`Image: <url>` in text, an inline image in markdown).
+Tavily's `include_images` is not used: it returns image URLs without the page
+each one came from.
 
 `all_tools` exposes every available provider tool, `one_provider` exposes one
 provider's tools, and `router` exposes one `search` tool that runs the chosen
