@@ -11,8 +11,10 @@ The `tinysearch` native module implements TinyBus ABI v1 and serves the
 credentials. Reinitialization replaces the connection and service state.
 
 By default `ListTools` presents capability roles (`web_search_tool`,
-`web_answer_tool`, `web_contents_tool`), each dispatched across an ordered
-provider list with fallback. Only Exa and Gemini have a managed backend
+`web_answer_tool`, `web_contents_tool`, `web_image_search_tool`), each
+dispatched across an ordered provider list with fallback. Image search
+results carry each image's direct URL and its source page in
+`provider_data.image_assets`. Only Exa and Gemini have a managed backend
 route; TinyFish, Parallel and the other keyed providers need the host to
 supply the user's own provider credential. SearXNG and Keenable work without
 one. Classified failures cross the bus as
