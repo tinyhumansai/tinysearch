@@ -34,6 +34,8 @@ fn role_tools_have_stable_names_and_round_trip() {
     assert_eq!(role_tool_name(Role::Search), "web_search_tool");
     assert_eq!(role_tool_name(Role::Answer), "web_answer_tool");
     assert_eq!(role_tool_name(Role::Contents), "web_contents_tool");
+    assert_eq!(role_tool_name(Role::Images), "web_image_search_tool");
+    assert_eq!(tools::WEB_IMAGE_SEARCH, role_tool_name(Role::Images));
     assert_eq!(tools::WEB_SEARCH, role_tool_name(Role::Search));
     for role in Role::ALL {
         assert_eq!(role_for_tool(role_tool_name(role)), Some(role));

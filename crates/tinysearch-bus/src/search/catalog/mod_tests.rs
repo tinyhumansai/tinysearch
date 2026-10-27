@@ -160,9 +160,24 @@ fn provider_roles_and_defaults_match_the_contract() {
         Some("keenable_fetch")
     );
     assert_eq!(role_provider_tool(Role::Answer, "keenable"), None);
-    for provider in ["brave", "querit", "seltz", "searxng"] {
+    for provider in ["querit", "seltz"] {
         assert_eq!(provider_roles(provider), [Role::Search]);
     }
+    for provider in ["brave", "searxng"] {
+        assert_eq!(provider_roles(provider), [Role::Search, Role::Images]);
+    }
+    assert_eq!(
+        role_provider_tool(Role::Images, "brave"),
+        Some("brave_image_search")
+    );
+    assert_eq!(
+        role_provider_tool(Role::Images, "searxng"),
+        Some("searxng_search")
+    );
+    for provider in ["exa", "tavily", "querit", "gemini"] {
+        assert_eq!(role_provider_tool(Role::Images, provider), None);
+    }
+    assert_eq!(default_role_providers(Role::Images), ["brave", "searxng"]);
     assert_eq!(
         default_role_providers(Role::Search),
         [
@@ -475,4 +490,73 @@ fn legacy_modes_still_select_provider_tools() {
         ..PresentationConfig::default()
     };
     assert_eq!(names(&select_tools(&available, &router)), ["search"]);
+}
+
+#[test]
+fn image_role_tool_declares_a_small_query_schema() -> Result<(), String> {
+    let mut config = SearchConfig::default();
+    config.providers.insert("brave".into(), keyed("brave-key"));
+    config.providers.insert(
+        "searxng".into(),
+        ProviderConfig {
+            base_url: Some("https://searx.example".into()),
+            ..ProviderConfig::default()
+        },
+    );
+    let available = configured_provider_tools(&config, &provider_tool_specs());
+    let images =
+        role_tool_specs(&available, &config.presentation, Role::Images).ok_or("missing images")?;
+    assert_eq!(images.name, tools::WEB_IMAGE_SEARCH);
+    assert_eq!(images.name, "web_image_search_tool");
+    assert_eq!(images.parameters["required"], json!(["query"]));
+    assert_eq!(images.parameters["additionalProperties"], false);
+    let properties = images.parameters["properties"]
+        .as_object()
+        .ok_or("properties")?;
+    assert_eq!(
+        properties.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["count", "country", "max_results", "provider", "query"]
+    );
+    assert_eq!(
+        properties["max_results"],
+        json!({"type":"integer","minimum":1,"maximum":20})
+    );
+    assert_eq!(properties["count"]["maximum"], 20);
+    assert_eq!(properties["country"]["maxLength"], 2);
+    assert_eq!(properties["provider"]["enum"], json!(["brave", "searxng"]));
+    assert!(images.description.contains("Backed by: brave, searxng"));
+    assert!(images.description.contains("direct URL"));
+
+    // The order follows the configured image list.
+    config.presentation.roles.insert(
+        Role::Images,
+        vec!["searxng".into(), "exa".into(), "brave".into()],
+    );
+    assert_eq!(
+        role_providers(&available, &config.presentation, Role::Images),
+        ["searxng", "brave"]
+    );
+    Ok(())
+}
+
+#[test]
+fn roles_mode_offers_images_only_with_an_image_provider() {
+    let mut config = SearchConfig::default();
+    config.providers.insert("exa".into(), keyed("exa-key"));
+    let available = configured_provider_tools(&config, &provider_tool_specs());
+    assert_eq!(
+        names(&select_tools(&available, &config.presentation)),
+        [tools::WEB_SEARCH, tools::WEB_ANSWER, tools::WEB_CONTENTS]
+    );
+    config.providers.insert("brave".into(), keyed("brave-key"));
+    let available = configured_provider_tools(&config, &provider_tool_specs());
+    assert_eq!(
+        names(&select_tools(&available, &config.presentation)),
+        [
+            tools::WEB_SEARCH,
+            tools::WEB_ANSWER,
+            tools::WEB_CONTENTS,
+            tools::WEB_IMAGE_SEARCH
+        ]
+    );
 }
