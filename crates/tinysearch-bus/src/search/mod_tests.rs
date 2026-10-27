@@ -126,7 +126,10 @@ fn role_response_fields_are_optional_on_the_wire() -> serde_json::Result<()> {
 
 #[test]
 fn role_helpers_round_trip_config_keys() {
-    assert_eq!(ROLES, [Role::Search, Role::Answer, Role::Contents]);
+    assert_eq!(
+        ROLES,
+        [Role::Search, Role::Answer, Role::Contents, Role::Images]
+    );
     for role in ROLES {
         assert_eq!(parse_role(role_key(role)), Some(role));
         assert_eq!(parse_role(&format!("  {} ", role_key(role))), Some(role));
