@@ -249,6 +249,10 @@ pub(super) fn provider_arguments(
 #[path = "mod_tests.rs"]
 mod test;
 
+#[cfg(test)]
+#[path = "mod_images_tests.rs"]
+mod images_test;
+
 /// Drops `depth: "deep"` when Deep Research is not among the role's usable
 /// providers, so the call is answered at quick depth instead of failing.
 ///

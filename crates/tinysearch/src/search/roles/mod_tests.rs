@@ -149,7 +149,7 @@ fn call(name: &str, arguments: Value) -> ExecuteToolRequest {
 }
 
 #[test]
-fn roles_mode_lists_the_three_role_tools() {
+fn roles_mode_lists_every_served_role_tool() {
     let fixture = fixture(&[], |_| {});
     let listed = fixture.service.list_tools().tools;
     assert_eq!(
@@ -157,7 +157,12 @@ fn roles_mode_lists_the_three_role_tools() {
             .iter()
             .map(|tool| tool.name.as_str())
             .collect::<Vec<_>>(),
-        [tools::WEB_SEARCH, tools::WEB_ANSWER, tools::WEB_CONTENTS]
+        [
+            tools::WEB_SEARCH,
+            tools::WEB_ANSWER,
+            tools::WEB_CONTENTS,
+            tools::WEB_IMAGE_SEARCH
+        ]
     );
 }
 
