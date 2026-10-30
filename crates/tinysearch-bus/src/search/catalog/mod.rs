@@ -24,6 +24,7 @@ pub const PROVIDERS: &[&str] = &[
     "seltz",
     "searxng",
     "keenable",
+    "firecrawl",
 ];
 
 /// Providers that support [`ProviderRoute::Backend`] through the managed
@@ -43,6 +44,7 @@ const KEYED_DIRECT_PROVIDERS: &[&str] = &[
     "seltz",
     "parallel",
     "tinyfish",
+    "firecrawl",
 ];
 
 /// Gemini models the managed backend accepts for grounded generation.
@@ -194,6 +196,20 @@ fn direct_provider_specs() -> BTreeMap<String, Vec<ToolSpec>> {
             &["urls"],
         ),
     ];
+    let firecrawl = vec![
+        tool(
+            "firecrawl_search",
+            "Search the web with Firecrawl",
+            json!({"query":text,"max_results":{"type":"integer","minimum":1,"maximum":20},"time_range":{"type":"string","enum":["day","week","month","year"]},"country":{"type":"string","minLength":2,"maxLength":2},"include_domains":urls(20),"exclude_domains":urls(20)}),
+            &["query"],
+        ),
+        tool(
+            "firecrawl_scrape",
+            "Scrape pages as markdown with Firecrawl",
+            json!({"urls":urls(10)}),
+            &["urls"],
+        ),
+    ];
     [
         ("exa".into(), exa),
         ("parallel".into(), parallel_specs()),
@@ -202,6 +218,7 @@ fn direct_provider_specs() -> BTreeMap<String, Vec<ToolSpec>> {
         ("tavily".into(), tavily),
         ("seltz".into(), seltz),
         ("keenable".into(), keenable),
+        ("firecrawl".into(), firecrawl),
     ]
     .into()
 }

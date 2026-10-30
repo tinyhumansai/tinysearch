@@ -9,6 +9,7 @@ use std::time::Duration;
 
 mod brave;
 mod exa;
+mod firecrawl;
 mod keenable;
 #[cfg(test)]
 mod migration_tests;
@@ -45,6 +46,9 @@ pub(super) async fn run(
         .as_deref()
         .filter(|s| !s.trim().is_empty())
         .ok_or_else(|| Error::Provider("provider credential unavailable".into()))?;
+    if provider == "firecrawl" {
+        return firecrawl::run(client, config, key, request).await;
+    }
     let (method, default_base, path, body, params, header, timeout) =
         prepare(provider, config, request, key)?;
     // A synchronous TinyFish browser run takes minutes; the host's search
