@@ -100,14 +100,14 @@ class ReleaseWorkflowTests(unittest.TestCase):
 
     def test_published_candidate_and_sdk_constraints_match_released_compatibility(self):
         manifest = tomllib.loads((ROOT / "Cargo.toml").read_text())
-        self.assertEqual(manifest["workspace"]["package"]["version"], "0.5.2")
+        self.assertEqual(manifest["workspace"]["package"]["version"], "0.5.4")
         self.assertEqual(
             manifest["workspace"]["dependencies"]["tinybus"]["version"],
-            ">=0.3.3, <0.4",
+            ">=0.3.6, <0.4",
         )
         self.assertEqual(
             manifest["workspace"]["dependencies"]["tinybus-module"]["version"],
-            ">=0.3.3, <0.4",
+            ">=0.3.6, <0.4",
         )
         sdk_gitlink = subprocess.run(
             ["git", "-C", str(ROOT), "ls-tree", "HEAD", "vendor/tinybus"],
