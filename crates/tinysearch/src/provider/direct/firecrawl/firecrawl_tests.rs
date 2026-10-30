@@ -126,7 +126,7 @@ async fn search_maps_count_filters_and_ignores_unknown_arguments() -> TestResult
         "fc-test-key",
         &request(
             "firecrawl_search",
-            json!({"query":"rust","time_range":"week","country":"US","include_domains":["rust-lang.org"],"exclude_domains":["spam.test"],"ignored":true}),
+            json!({"query":"rust","time_range":"week","country":"US","include_domains":["rust-lang.org"],"ignored":true}),
         ),
     )
     .await?;
@@ -134,9 +134,28 @@ async fn search_maps_count_filters_and_ignores_unknown_arguments() -> TestResult
     let sent = sent.first().ok_or("no request")?;
     assert_eq!(
         body(sent)?,
-        json!({"query":"rust","limit":20,"integration":"_tinysearch","tbs":"qdr:w","country":"US","includeDomains":["rust-lang.org"],"excludeDomains":["spam.test"]})
+        json!({"query":"rust","limit":20,"integration":"_tinysearch","tbs":"qdr:w","country":"US","includeDomains":["rust-lang.org"]})
     );
     assert_eq!(response.status, crate::SearchStatus::Empty);
+    Ok(())
+}
+
+#[tokio::test]
+async fn search_forwards_exclude_domains() -> TestResult<()> {
+    let (url, server) = mock(vec![(200, json!({"success":true,"data":{"web":[]}}))]).await?;
+    run(
+        &Client::new(),
+        &config(&url),
+        "fc-test-key",
+        &request(
+            "firecrawl_search",
+            json!({"query":"rust","exclude_domains":["spam.test"]}),
+        ),
+    )
+    .await?;
+    let sent = server.await??;
+    let sent = sent.first().ok_or("no request")?;
+    assert_eq!(body(sent)?["excludeDomains"], json!(["spam.test"]));
     Ok(())
 }
 
@@ -368,6 +387,10 @@ async fn invalid_requests_fail_before_any_call() -> TestResult<()> {
         (
             "firecrawl_search",
             json!({"query":"q","include_domains":[" "]}),
+        ),
+        (
+            "firecrawl_search",
+            json!({"query":"q","include_domains":["a.test"],"exclude_domains":["b.test"]}),
         ),
         ("firecrawl_scrape", json!({"urls":[]})),
         ("firecrawl_scrape", json!({"urls":too_many})),

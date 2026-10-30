@@ -101,6 +101,9 @@ async fn search(
                 .ok_or(Error::InvalidArguments)?
         );
     }
+    if args.get("include_domains").is_some() && args.get("exclude_domains").is_some() {
+        return Err(Error::InvalidArguments);
+    }
     for (field, target) in [
         ("include_domains", "includeDomains"),
         ("exclude_domains", "excludeDomains"),
