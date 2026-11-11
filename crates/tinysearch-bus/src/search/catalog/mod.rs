@@ -25,6 +25,7 @@ pub const PROVIDERS: &[&str] = &[
     "searxng",
     "keenable",
     "serply",
+    "firecrawl",
 ];
 
 /// Providers that support [`ProviderRoute::Backend`] through the managed
@@ -45,6 +46,7 @@ const KEYED_DIRECT_PROVIDERS: &[&str] = &[
     "parallel",
     "tinyfish",
     "serply",
+    "firecrawl",
 ];
 
 /// Gemini models the managed backend accepts for grounded generation.
@@ -211,8 +213,29 @@ fn direct_provider_specs() -> BTreeMap<String, Vec<ToolSpec>> {
         ("seltz".into(), seltz),
         ("keenable".into(), keenable),
         ("serply".into(), serply),
+        ("firecrawl".into(), firecrawl_specs()),
     ]
     .into()
+}
+
+/// Firecrawl's direct API operations: search, and scrape to markdown.
+fn firecrawl_specs() -> Vec<ToolSpec> {
+    let text = json!({"type":"string","minLength":1});
+    let urls = |max| json!({"type":"array","items":{"type":"string","minLength":1},"minItems":1,"maxItems":max});
+    vec![
+        tool(
+            "firecrawl_search",
+            "Search the web with Firecrawl",
+            json!({"query":text,"max_results":{"type":"integer","minimum":1,"maximum":20},"time_range":{"type":"string","enum":["day","week","month","year"]},"country":{"type":"string","minLength":2,"maxLength":2},"include_domains":urls(20),"exclude_domains":urls(20)}),
+            &["query"],
+        ),
+        tool(
+            "firecrawl_scrape",
+            "Scrape pages as markdown with Firecrawl",
+            json!({"urls":urls(10)}),
+            &["urls"],
+        ),
+    ]
 }
 
 /// Parallel's direct API operations. Parallel has no managed backend route, so

@@ -22,6 +22,7 @@ pub fn provider_label(provider: &str) -> Cow<'_, str> {
         "searxng" => "SearXNG",
         "keenable" => "Keenable",
         "serply" => "Serply",
+        "firecrawl" => "Firecrawl",
         other => other,
     })
 }

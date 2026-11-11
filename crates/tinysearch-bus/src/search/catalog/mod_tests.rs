@@ -32,6 +32,7 @@ fn catalog_and_selection_are_stable() {
         [
             "brave",
             "exa",
+            "firecrawl",
             "gemini",
             "gemini_deep_research",
             "keenable",
@@ -46,13 +47,14 @@ fn catalog_and_selection_are_stable() {
     );
     assert_eq!(specs["tinyfish"].len(), 3);
     assert_eq!(specs["keenable"].len(), 2);
+    assert_eq!(specs["firecrawl"].len(), 2);
     assert_eq!(specs["exa"].len(), 4);
     assert_eq!(specs["parallel"].len(), 9);
     let all = PresentationConfig {
         mode: PresentationMode::AllTools,
         ..PresentationConfig::default()
     };
-    assert_eq!(select_tools(&specs, &all).tools.len(), 30);
+    assert_eq!(select_tools(&specs, &all).tools.len(), 32);
 }
 
 #[test]
@@ -128,6 +130,30 @@ fn every_provider_has_specs_roles_and_role_tools() {
 }
 
 #[test]
+fn keyed_search_and_contents_providers_map_their_tools() {
+    assert_eq!(provider_roles("keenable"), [Role::Search, Role::Contents]);
+    assert_eq!(
+        role_provider_tool(Role::Search, "keenable"),
+        Some("keenable_search")
+    );
+    assert_eq!(
+        role_provider_tool(Role::Contents, "keenable"),
+        Some("keenable_fetch")
+    );
+    assert_eq!(role_provider_tool(Role::Answer, "keenable"), None);
+    assert_eq!(provider_roles("firecrawl"), [Role::Search, Role::Contents]);
+    assert_eq!(
+        role_provider_tool(Role::Search, "firecrawl"),
+        Some("firecrawl_search")
+    );
+    assert_eq!(
+        role_provider_tool(Role::Contents, "firecrawl"),
+        Some("firecrawl_scrape")
+    );
+    assert_eq!(role_provider_tool(Role::Answer, "firecrawl"), None);
+}
+
+#[test]
 fn provider_roles_and_defaults_match_the_contract() {
     for provider in ["exa", "parallel"] {
         assert_eq!(
@@ -156,16 +182,6 @@ fn provider_roles_and_defaults_match_the_contract() {
     assert_eq!(provider_roles("gemini_deep_research"), [Role::Answer]);
     assert_eq!(provider_roles("tinyfish"), [Role::Search, Role::Contents]);
     assert_eq!(provider_roles("tavily"), [Role::Search, Role::Contents]);
-    assert_eq!(provider_roles("keenable"), [Role::Search, Role::Contents]);
-    assert_eq!(
-        role_provider_tool(Role::Search, "keenable"),
-        Some("keenable_search")
-    );
-    assert_eq!(
-        role_provider_tool(Role::Contents, "keenable"),
-        Some("keenable_fetch")
-    );
-    assert_eq!(role_provider_tool(Role::Answer, "keenable"), None);
     for provider in ["querit", "seltz", "serply"] {
         assert_eq!(provider_roles(provider), [Role::Search]);
     }
@@ -187,8 +203,18 @@ fn provider_roles_and_defaults_match_the_contract() {
     assert_eq!(
         default_role_providers(Role::Search),
         [
-            "exa", "brave", "tavily", "parallel", "querit", "seltz", "searxng", "tinyfish",
-            "keenable", "serply", "gemini"
+            "exa",
+            "brave",
+            "tavily",
+            "parallel",
+            "querit",
+            "seltz",
+            "searxng",
+            "tinyfish",
+            "keenable",
+            "serply",
+            "firecrawl",
+            "gemini"
         ]
     );
     assert_eq!(
@@ -197,7 +223,14 @@ fn provider_roles_and_defaults_match_the_contract() {
     );
     assert_eq!(
         default_role_providers(Role::Contents),
-        ["exa", "tavily", "parallel", "tinyfish", "keenable"]
+        [
+            "exa",
+            "tavily",
+            "parallel",
+            "tinyfish",
+            "keenable",
+            "firecrawl"
+        ]
     );
     assert_eq!(
         PROVIDERS,
@@ -213,7 +246,8 @@ fn provider_roles_and_defaults_match_the_contract() {
             "seltz",
             "searxng",
             "keenable",
-            "serply"
+            "serply",
+            "firecrawl"
         ]
     );
     // The TinyHumans backend does not proxy TinyFish: it is own-key only.
@@ -234,7 +268,15 @@ fn direct_tools_require_a_nonempty_private_credential() {
     let specs = provider_tool_specs();
     let mut config = SearchConfig::default();
     for name in [
-        "exa", "parallel", "brave", "querit", "tavily", "seltz", "tinyfish", "serply",
+        "exa",
+        "parallel",
+        "brave",
+        "querit",
+        "tavily",
+        "seltz",
+        "tinyfish",
+        "serply",
+        "firecrawl",
     ] {
         config.providers.insert(name.into(), keyed("  "));
     }
@@ -251,6 +293,7 @@ fn direct_tools_require_a_nonempty_private_credential() {
     assert_eq!(available["seltz"].len(), 1);
     assert_eq!(available["tinyfish"].len(), 3);
     assert_eq!(available["serply"].len(), 1);
+    assert_eq!(available["firecrawl"].len(), 2);
 }
 
 #[test]

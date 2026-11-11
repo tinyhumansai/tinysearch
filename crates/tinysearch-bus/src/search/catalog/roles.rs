@@ -15,7 +15,7 @@ pub fn provider_roles(provider: &str) -> &'static [Role] {
         "exa" | "parallel" => &[Role::Search, Role::Answer, Role::Contents],
         "gemini" => &[Role::Search, Role::Answer],
         "gemini_deep_research" => &[Role::Answer],
-        "tinyfish" | "tavily" | "keenable" => &[Role::Search, Role::Contents],
+        "tinyfish" | "tavily" | "keenable" | "firecrawl" => &[Role::Search, Role::Contents],
         "brave" | "searxng" => &[Role::Search, Role::Images],
         "querit" | "seltz" | "serply" => &[Role::Search],
         _ => &[],
@@ -27,11 +27,28 @@ pub fn provider_roles(provider: &str) -> &'static [Role] {
 pub fn default_role_providers(role: Role) -> &'static [&'static str] {
     match role {
         Role::Search => &[
-            "exa", "brave", "tavily", "parallel", "querit", "seltz", "searxng", "tinyfish",
-            "keenable", "serply", "gemini",
+            "exa",
+            "brave",
+            "tavily",
+            "parallel",
+            "querit",
+            "seltz",
+            "searxng",
+            "tinyfish",
+            "keenable",
+            "serply",
+            "firecrawl",
+            "gemini",
         ],
         Role::Answer => &["gemini", "gemini_deep_research", "exa", "parallel"],
-        Role::Contents => &["exa", "tavily", "parallel", "tinyfish", "keenable"],
+        Role::Contents => &[
+            "exa",
+            "tavily",
+            "parallel",
+            "tinyfish",
+            "keenable",
+            "firecrawl",
+        ],
         Role::Images => &["brave", "searxng"],
     }
 }
@@ -51,6 +68,7 @@ pub fn role_provider_tool(role: Role, provider: &str) -> Option<&'static str> {
         (Role::Search, "parallel") => "parallel_search",
         (Role::Search, "keenable") => "keenable_search",
         (Role::Search, "serply") => "serply_search",
+        (Role::Search, "firecrawl") => "firecrawl_search",
         (Role::Answer, "gemini_deep_research") => "gemini_deep_research",
         (Role::Answer, "exa") => "exa_answer",
         (Role::Answer, "parallel") => "parallel_chat",
@@ -59,6 +77,7 @@ pub fn role_provider_tool(role: Role, provider: &str) -> Option<&'static str> {
         (Role::Contents, "tinyfish") => "tinyfish_fetch",
         (Role::Contents, "parallel") => "parallel_extract",
         (Role::Contents, "keenable") => "keenable_fetch",
+        (Role::Contents, "firecrawl") => "firecrawl_scrape",
         (Role::Images, "brave") => "brave_image_search",
         _ => return None,
     })

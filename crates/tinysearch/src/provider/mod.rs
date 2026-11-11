@@ -128,7 +128,7 @@ impl BuiltinProvider {
                 exa_request(&request)?
             }
             "exa" | "parallel" | "brave" | "querit" | "tavily" | "seltz" | "searxng"
-            | "tinyfish" | "keenable" | "serply" => {
+            | "tinyfish" | "keenable" | "serply" | "firecrawl" => {
                 return direct::run(&self.client, self.name, config, request).await;
             }
             "gemini" => return self.gemini(config, backend, request, role).await,

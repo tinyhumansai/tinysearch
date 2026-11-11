@@ -15,6 +15,7 @@ fn known_ids_map_to_display_names() {
         ("searxng", "SearXNG"),
         ("keenable", "Keenable"),
         ("serply", "Serply"),
+        ("firecrawl", "Firecrawl"),
     ] {
         assert_eq!(provider_label(id), label);
     }
